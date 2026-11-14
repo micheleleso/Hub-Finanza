@@ -4,7 +4,7 @@
 > leggi questo file prima di toccare il codice e **aggiornalo ogni volta che cambi qualcosa**
 > (vedi «Registro modifiche» in fondo). Così chi arriva dopo sa cosa è stato fatto e perché.
 
-Ultimo aggiornamento di questo file: 2026-11-14 (aggiornato da ChatGPT/Codex).
+Ultimo aggiornamento di questo file: 2026-11-14 (Claude, dopo la revisione del lavoro di ChatGPT/Codex).
 
 ---
 
@@ -140,7 +140,7 @@ create policy "transactions: solo le proprie" on public.transactions
   );
 ```
 
-Nota sul progetto live: il vincolo `transactions_category_required` è stato aggiunto come `NOT VALID` per preservare una transazione storica senza categoria; continua comunque a controllare nuove righe e righe modificate. `Riconcilia saldo` crea attualmente una transazione di rettifica senza categoria: va sistemata prima di usare quella funzione, altrimenti il nuovo vincolo la rifiuta.
+Nota sul progetto live: il vincolo `transactions_category_required` è stato aggiunto come `NOT VALID` per preservare una transazione storica senza categoria; continua comunque a controllare nuove righe e righe modificate. Dalla versione 2.6 `Riconcilia saldo` crea la rettifica con la categoria «Rettifica saldo» (creata al bisogno, una per Entrata e una per Uscita), quindi rispetta il vincolo.
 
 ### Regole del modello dati
 - `accounts.type`: `cash`, `card`, `savings`, `investment`.
@@ -200,6 +200,7 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 | 2.0 | Tema Dark Mode fintech (#29FFC2), menu Mese + Anno, barra mobile con area sicura |
 | 2.0+ | Ritorno a Supabase con login, scritture ottimistiche, sincronizzazione, importazione dati locali |
 | 2.1–2.4 | Libreria Supabase 2.109.0, messaggi di errore in italiano, email di conferma con reinvio, riga di diagnostica, barra errori, controllo campi, testo «Caricamento…» |
+| 2.6 | Correzione di «Riconcilia saldo»: la rettifica ora usa la categoria «Rettifica saldo» (il vincolo `transactions_category_required` rifiutava le rettifiche senza categoria). Controllata con un test automatico in modalità demo (dashboard, riconciliazione, form, analisi, selettore emoji: nessun errore JS); **non provata con Supabase reale** |
 | 2.5 | Modifica/eliminazione di movimenti, conti e categorie; Analisi per categoria e budget mensile; selezione colore dal quadratino; menu «Necessità» / «Casuale»; selettore emoji a pulsante quadrato; email e stato sincronizzazione nella sidebar. Commit presenti su `main`; non provata in browser. |
 
 ## 11. Da fare
@@ -220,4 +221,5 @@ perché serve a capire a colpo d'occhio quale versione è davvero online.
 ### Registro modifiche
 | Data | Chi | Versione | Cosa è stato fatto | Note / da verificare |
 |---|---|---|---|---|
+| 2026-11-14 | Claude | 2.6 | Revisione del `index.html` di Codex (sintassi ok). Fix «Riconcilia saldo» con categoria «Rettifica saldo». Il resto del codice di Codex è invariato. | Provare con Supabase reale: riconcilia un conto e controlla che la rettifica compaia nei movimenti ma non nei KPI. La categoria «Rettifica saldo» compare nell'elenco categorie e nei menu: è voluto, non eliminarla finché ci sono rettifiche. Il grafico dell'andamento mensile (presente nella mia 2.5) resta rimosso |
 | 2026-11-14 | ChatGPT/Codex | 2.5 | RLS verifica categoria proprietaria; categoria resa obbligatoria per movimenti non trasferimenti; UI con messaggio dedicato; modifica/eliminazione per movimenti, conti e categorie; analisi per categoria e budget; menu categorie sopra i movimenti; emoji a pulsante, menu Necessità/Casuale, colore da quadratino; email in sidebar; rimosso grafico andamento mensile. | Modifiche su `main`; nessun test browser. Una rettifica di saldo senza categoria è incompatibile col nuovo vincolo e va corretta. |
