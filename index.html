@@ -78,7 +78,7 @@ window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reas
 const LS_KEY = 'hub_finanza_demo';
 const now = new Date();
 const pad = n => String(n).padStart(2,'0');
-let S = {accounts:[], categories:[], transactions:[]}, chart, trendChart;
+let S = {accounts:[], categories:[], transactions:[]}, chart;
 let EDIT_TX_ID = null, currentEmail = '';
 // Filtri Transazioni (mese '' = tutti i mesi) e Analisi (sempre un mese preciso)
 const V = {tab:'dash', m:pad(now.getMonth()+1), y:String(now.getFullYear()), type:'', acc:'', q:''};
@@ -316,8 +316,7 @@ function viewDash(){
       <button class="${B2}" onclick="newItem('account')">+ Conto</button></div>
     <div class="grid md:grid-cols-2 gap-3">${accs}</div>
     <h2 class="font-semibold mt-8 mb-3">Ultimi movimenti</h2>
-    <div class="bg-surf rounded-2xl border border-slate-800 divide-y divide-slate-800">${recent}</div>
-    <p class="md:hidden mt-8 text-xs text-slate-500 text-center leading-relaxed">${foot()}</p>`;
+    <div class="bg-surf rounded-2xl border border-slate-800 divide-y divide-slate-800">${recent}</div>`;
 }
 
 /* Riconciliazione: crea una transazione di rettifica (tag "rettifica") pari alla differenza */
@@ -343,7 +342,10 @@ function reconc(id){
 function viewTx(){
   $('#view').innerHTML = `
     <div class="flex items-center justify-between mb-4"><h1 class="text-xl font-semibold">Transazioni</h1>
-      <div class="flex gap-2"><button class="${B2}" onclick="newItem('account')">+ Conto</button><button class="${B2}" onclick="newItem('category')">+ Categoria</button></div></div>
+      <button class="${B2}" onclick="newItem('account')">+ Conto</button></div>
+    <details class="${CARD} mb-4"><summary class="cursor-pointer font-semibold">Gestisci categorie</summary>
+      <div class="mt-3"><div class="flex items-center justify-between mb-3"><p class="text-xs text-slate-500">Le categorie non dipendono da un conto specifico.</p><button class="${B2}" onclick="newItem('category')">+ Nuova categoria</button></div><div id="category-list" class="space-y-2"></div></div>
+    </details>
     <div class="space-y-2 mb-4">
       ${dateSel(V,'setTx',true)}
       <div class="grid grid-cols-2 gap-2">
@@ -354,7 +356,7 @@ function viewTx(){
       <input type="search" placeholder="Cerca descrizione o tag…" value="${esc(V.q)}" class="${IN}" oninput="setTx('q',this.value)"></div>
     <div id="list" class="bg-surf rounded-2xl border border-slate-800 divide-y divide-slate-800"></div>
     <div id="sum" class="text-xs text-slate-500 mt-2 text-right"></div>
-    <section class="${CARD} mt-8"><div class="flex items-center justify-between mb-3"><h2 class="font-semibold">Categorie</h2><button class="${B2}" onclick="newItem('category')">+ Categoria</button></div><div id="category-list" class="space-y-2"></div></section>`;
+    `;
   renderList();
   renderCategories();
 }
@@ -431,10 +433,7 @@ function newItem(kind = 'category', editId = null){
   const item = editId ? (isAcc ? acc(editId) : cat(editId)) : null;
   if (editId && !item) return toast('Elemento non trovato');
   const num = v => { const n = parseFloat(String(v||'').replace(',','.')); return isNaN(n) ? null : n; };
-  modal(`<div class="grid grid-cols-2 gap-1 rounded-xl bg-bg p-1 mb-4">
-      <button type="button" onclick="newItem('account')" class="rounded-lg py-2 text-xs font-medium ${isAcc?SEG_ON:SEG_OFF}">Conti</button>
-      <button type="button" onclick="newItem('category')" class="rounded-lg py-2 text-xs font-medium ${!isAcc?SEG_ON:SEG_OFF}">Categorie</button></div>
-    <h3 class="font-semibold mb-3">${item?'Modifica '+(isAcc?'conto':'categoria'):'Nuov'+(isAcc?'o conto':'a categoria')}</h3>
+  modal(`<h3 class="font-semibold mb-3">${item?'Modifica '+(isAcc?'conto':'categoria'):'Nuov'+(isAcc?'o conto':'a categoria')}</h3>
     <form id="nf" class="space-y-3"><input name="name" value="${esc(item?.name||'')}" placeholder="Nome" required class="${IN}">
     ${isAcc ? `<select name="type" class="${IN}">${Object.entries(ACC_LBL).map(([k,l]) => `<option value="${k}" ${item?.type===k?'selected':''}>${l}</option>`).join('')}</select>
       <input name="initial_balance" inputmode="decimal" value="${item?esc(item.initial_balance):''}" placeholder="Saldo iniziale (€)" class="${IN}">`
@@ -476,13 +475,6 @@ function viewAn(){
     const spent=expenseRows.find(x=>x.id===c.id)?.value||0, budget=+c.monthly_budget||0, pct=budget>0?spent/budget*100:0;
     return `<div class="py-2"><div class="flex items-center gap-2 text-sm"><span class="flex-1 truncate">${esc(c.icon||'🏷️')} ${esc(c.name)}</span><span class="tabular">${eur(spent)} / ${eur(budget)}</span></div><div class="h-2 rounded-full bg-slate-800 mt-1"><div class="h-2 rounded-full ${pct>100?'bg-red-400':'bg-mint'}" style="width:${Math.min(Math.max(pct,0),100)}%"></div></div><div class="text-right text-[11px] ${pct>100?'text-red-400':'text-slate-500'}">${pct>100?'oltre budget di '+eur(spent-budget):pct.toFixed(0)+'% del budget'}</div></div>`;
   }).join('')||'<p class="text-sm text-slate-500">Imposta un budget mensile modificando una categoria.</p>';
-  const annual = S.transactions.filter(t=>t.date.startsWith(A.y+'-')&&!(t.tags||[]).includes('rettifica'));
-  const annualValues = Array.from({length:12},(_,i)=>{
-    const month=`${A.y}-${pad(i+1)}`, tx=annual.filter(t=>t.date.startsWith(month));
-    const income=tx.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0);
-    const expense=tx.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0)-tx.filter(t=>t.type==='refund').reduce((s,t)=>s+ +t.amount,0);
-    return {income,expense,saving:income-expense};
-  });
   const k = (l,v,c='') => `<div class="${CARD}"><div class="text-xs text-slate-400">${l}</div><div class="mt-1 text-xl font-semibold tabular ${c}">${v}</div></div>`;
   $('#view').innerHTML = `
     <div class="mb-4"><h1 class="text-xl font-semibold mb-3">Analisi completa</h1>${dateSel(A,'setAn',false)}</div>
@@ -491,7 +483,6 @@ function viewAn(){
       ${k('Risparmio',eur(risp),risp<0?'text-red-400':'text-mint')}${k('Tasso di risparmio',rate.toFixed(1)+'%',rate<0?'text-red-400':'')}</div>
     <div class="grid md:grid-cols-2 gap-3 mt-3"><div class="${CARD}"><h2 class="font-semibold mb-2">Entrate per categoria</h2>${catList(incomeRows)}</div><div class="${CARD}"><h2 class="font-semibold mb-2">Uscite nette per categoria</h2>${catList(expenseRows)}</div></div>
     <div class="${CARD} mt-3"><h2 class="font-semibold mb-2">Budget mensili · ${MESI[+A.m-1]} ${A.y}</h2>${budgetHtml}</div>
-    <div class="${CARD} mt-3"><h2 class="font-semibold mb-3">Andamento mensile · ${A.y}</h2><div class="h-64"><canvas id="trend"></canvas></div></div>
     <div class="${CARD} mt-3"><h2 class="font-semibold mb-3">Spese: Necessità e Casuale</h2>
       <div class="grid md:grid-cols-2 gap-4 items-center">
         <div class="h-52"><canvas id="ch"></canvas></div>
@@ -501,16 +492,10 @@ function viewAn(){
           <div class="flex justify-between"><span class="text-slate-300">Casuale</span><b class="tabular text-amber-300">${eur(cas)} · ${ex>0?(100-pn).toFixed(0):0}%</b></div>
           <p class="text-xs text-slate-500">Rimborsi sottratti dal totale uscite; rettifiche di saldo escluse.</p></div></div></div>`;
   if (chart) chart.destroy();
-  if (trendChart) trendChart.destroy();
   Chart.defaults.color = '#94a3b8';
   chart = new Chart($('#ch'), {type:'doughnut',
     data:{labels:['Necessità','Casuale'], datasets:[{data:ex>0?[nec,cas]:[1,0], backgroundColor:ex>0?['#29FFC2','#f59e0b']:['#1e293b','#1e293b'], borderColor:'#111827', borderWidth:3}]},
     options:{cutout:'70%', maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}});
-  trendChart = new Chart($('#trend'),{type:'line',data:{labels:MESI.map(m=>m.slice(0,3)),datasets:[
-    {label:'Entrate',data:annualValues.map(x=>x.income),borderColor:'#29FFC2',backgroundColor:'#29FFC2',tension:.3},
-    {label:'Uscite nette',data:annualValues.map(x=>x.expense),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3},
-    {label:'Risparmio',data:annualValues.map(x=>x.saving),borderColor:'#818cf8',backgroundColor:'#818cf8',tension:.3}
-  ]},options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>eur(v)}}}}});
 }
 
 /* ===================== TAB 4 · PATRIMONIO & CALENDARIO (segnaposto) ===================== */
