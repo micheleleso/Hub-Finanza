@@ -66,7 +66,7 @@ const SUPABASE_URL = 'https://ddfeeqybmxladzunkpbg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_F3q51ck3EEkWZ8dfPHiyWg_HkwpiRBW';
 const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 let sb;
-const APP_VERSION = '2.5';
+const APP_VERSION = '2.6';
 // Qualsiasi errore di JavaScript viene mostrato in una barra rossa (niente più pagina muta)
 function showFatal(m){
   let b = document.getElementById('fatal');
@@ -332,7 +332,12 @@ function reconc(id){
     if (isNaN(real)) return toast('Importo non valido');
     const diff = real - balance(a);
     if (Math.abs(diff) < 0.005){ closeModal(); return toast('Il saldo coincide già'); }
-    ins('transactions', {type:diff>0?'income':'expense', account_id:id, to_account_id:null, category_id:null,
+    // Il database richiede una categoria per ogni movimento che non sia un trasferimento:
+    // si usa (o si crea) la categoria «Rettifica saldo» del tipo giusto. Le rettifiche restano escluse dai KPI (tag "rettifica").
+    const ctype = diff > 0 ? 'income' : 'expense';
+    let rc = S.categories.find(c => c.name === 'Rettifica saldo' && c.type === ctype);
+    if (!rc){ rc = {name:'Rettifica saldo', type:ctype, icon:'⚖️', color:'#64748b', monthly_budget:null}; ins('categories', rc); }
+    ins('transactions', {type:ctype, account_id:id, to_account_id:null, category_id:rc.id,
       amount:+Math.abs(diff).toFixed(2), is_necessary:null, date:today(), description:'Rettifica saldo', notes:null, tags:['rettifica']});
     closeModal(); render();
   };
