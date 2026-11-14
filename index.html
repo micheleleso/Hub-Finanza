@@ -425,7 +425,7 @@ function saveTx(e){
 function chooseEmoji(value){ $('#emoji-input').value=value; $('#emoji-button').textContent=value; $('#emoji-panel').classList.add('hidden'); }
 function openEmojiPicker(){ $('#emoji-panel').classList.remove('hidden'); }
 function emojiField(value){
-  return `<div class="space-y-2"><label class="block text-xs text-slate-400">Emoji</label><input id="emoji-input" name="icon" type="hidden" value="${esc(value||'')}"><button id="emoji-button" type="button" onclick="openEmojiPicker()" aria-label="Apri selettore emoji" title="Scegli un’emoji" class="h-12 w-12 rounded-xl border border-slate-800 bg-bg text-2xl hover:border-mint/60">${esc(value||'😊')}</button>
+  return `<div class="space-y-2"><label class="block text-xs text-slate-400">Emoji</label><input id="emoji-input" name="icon" type="hidden" value="${esc(value||'')}"><button id="emoji-button" type="button" onclick="openEmojiPicker()" aria-label="Apri selettore emoji" class="h-12 w-12 rounded-xl border border-slate-800 bg-bg text-2xl hover:border-mint/60">${esc(value||'😊')}</button>
     <div id="emoji-panel" class="hidden grid-cols-8 gap-1 rounded-xl border border-slate-800 bg-bg p-2">${EMOJIS.map(e=>`<button type="button" onclick="chooseEmoji('${e}')" class="rounded-lg p-2 text-xl hover:bg-slate-800" aria-label="${e}">${e}</button>`).join('')}</div></div>`;
 }
 function newItem(kind = 'category', editId = null){
