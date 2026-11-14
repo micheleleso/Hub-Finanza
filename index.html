@@ -349,7 +349,7 @@ function txForm(type = T){
       <div><label class="text-xs text-slate-400">${type==='transfer'?'Da conto':'Conto'}</label><select name="account_id" class="${IN}">${opt(S.accounts)}</select></div>
       ${type==='transfer' ? `<div><label class="text-xs text-slate-400">A conto</label><select name="to_account_id" class="${IN}">${opt(S.accounts)}</select></div>` : `
       <div><label class="text-xs text-slate-400">Categoria${type==='refund'?' di spesa da scalare':''}</label>
-        <select name="category_id" class="${IN}" ${type==='refund'?'required':''}><option value="">—</option>${opt(cats)}</select></div>`}
+        <select name="category_id" class="${IN}" required><option value="">—</option>${opt(cats)}</select></div>`}
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-xs text-slate-400">Importo (€)</label><input name="amount" inputmode="decimal" required class="${IN}" placeholder="0,00"></div>
         <div><label class="text-xs text-slate-400">Data</label><input type="date" name="date" value="${today()}" required class="${IN}"></div></div>
@@ -372,6 +372,7 @@ function saveTx(e){
     is_necessary:type==='expense'?!!f.get('is_necessary'):null, date:f.get('date'),
     description:f.get('description')||null, notes:null,
     tags:(f.get('tags')||'').split(',').map(s => s.trim().replace(/^#/,'')).filter(Boolean)};
+  if (type!=='transfer' && !r.category_id) return toast('Seleziona una categoria');
   if (type==='transfer' && r.account_id===r.to_account_id) return toast('Scegli due conti diversi');
   ins('transactions', r); closeModal(); render();
 }
