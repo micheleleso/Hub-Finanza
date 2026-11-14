@@ -29,6 +29,7 @@
     #fab{right:2rem;bottom:2rem}
   }
   ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#1e293b;border-radius:8px}
+  #emoji-panel:not(.hidden){display:grid}
 </style>
 </head>
 <body class="bg-bg text-slate-100">
@@ -77,7 +78,8 @@ window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reas
 const LS_KEY = 'hub_finanza_demo';
 const now = new Date();
 const pad = n => String(n).padStart(2,'0');
-let S = {accounts:[], categories:[], transactions:[]}, chart;
+let S = {accounts:[], categories:[], transactions:[]}, chart, trendChart;
+let EDIT_TX_ID = null, currentEmail = '';
 // Filtri Transazioni (mese '' = tutti i mesi) e Analisi (sempre un mese preciso)
 const V = {tab:'dash', m:pad(now.getMonth()+1), y:String(now.getFullYear()), type:'', acc:'', q:''};
 const A = {m:pad(now.getMonth()+1), y:String(now.getFullYear())};
@@ -100,6 +102,7 @@ const DEFAULT_CATS = [
   {name:'Svago',     type:'expense', icon:'🎬', color:'#f472b6', monthly_budget:100},
   {name:'Salute',    type:'expense', icon:'💊', color:'#f87171', monthly_budget:null},
 ];
+const EMOJIS = ['🏷️','💰','💼','🛒','🏠','🚌','🍕','🎬','💊','🚗','☕','🎁','✈️','🐾','📚','🎮','🧾','🛍️','💡','🏋️','🍽️','🎵','👕','🧹','📱','💳','🏦','🌱','❤️','⭐','🎓','🔧'];
 const $ = s => document.querySelector(s);
 const eur = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n||0);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -171,13 +174,41 @@ function ins(table,row){
     if (error){ S[table] = S[table].filter(x => x.id !== row.id); toast('Salvataggio fallito: ' + error.message); render(); }
   });
 }
+function upd(table,id,patch){
+  const rows = S[table], i = rows.findIndex(x => x.id === id);
+  if (i < 0) return toast('Elemento non trovato');
+  rows[i] = {...rows[i], ...patch};
+  if (DEMO){ save(); render(); return; }
+  Q = Q.then(async () => {
+    const {error} = await sb.from(table).update(patch).eq('id',id);
+    if (error) toast('Modifica non salvata: ' + error.message);
+    await load(); render();
+  });
+}
+function del(table,id){
+  if (DEMO){ S[table] = S[table].filter(x => x.id !== id); save(); render(); return; }
+  Q = Q.then(async () => {
+    const {error} = await sb.from(table).delete().eq('id',id);
+    if (error) toast('Eliminazione non riuscita: ' + error.message);
+    await load(); render();
+  });
+}
+function removeItem(kind,id){
+  if (kind === 'account' && S.transactions.some(t => t.account_id === id || t.to_account_id === id))
+    return toast('Impossibile eliminare: il conto è usato da una transazione');
+  if (kind === 'category' && S.transactions.some(t => t.category_id === id))
+    return toast('Impossibile eliminare: la categoria è usata da una transazione');
+  const label = kind === 'account' ? 'conto' : 'categoria';
+  if (!confirm(`Eliminare questo ${label}?`)) return;
+  del(kind === 'account' ? 'accounts' : 'categories',id);
+}
 function resetDemo(){
   if (confirm('Ripristinare i dati demo? Le modifiche salvate andranno perse.')){ localStorage.removeItem(LS_KEY); load().then(render); }
 }
-const foot = () => `v${APP_VERSION} · ` + (DEMO
+const foot = () => `${!DEMO && currentEmail ? `<div class="mb-1 text-slate-400">${esc(currentEmail)}</div>` : ''}<div>v${APP_VERSION} · ` + (DEMO
   ? `Modalità demo: dati solo su questo dispositivo · <button class="underline hover:text-mint" onclick="resetDemo()">Ripristina demo</button>`
   : `Sincronizzato con Supabase · <button class="underline hover:text-mint" onclick="sb.auth.signOut()">Esci</button>` +
-    (localStorage.getItem(LS_KEY) && !localStorage.getItem('hub_imported') ? ` · <button class="underline hover:text-mint" onclick="importLocal()">Importa dati locali</button>` : ''));
+    (localStorage.getItem(LS_KEY) && !localStorage.getItem('hub_imported') ? ` · <button class="underline hover:text-mint" onclick="importLocal()">Importa dati locali</button>` : '')) + '</div>';
 
 /* Importa nel database i dati salvati in localStorage su questo browser/indirizzo */
 async function importLocal(){
@@ -234,12 +265,12 @@ function dateSel(st, fn, allMonths){
 }
 
 /* ===================== RIGA MOVIMENTO ===================== */
-function row(t, withDel){
+function row(t, withActions){
   const c = cat(t.category_id), a = acc(t.account_id), b = acc(t.to_account_id);
   const sign = (t.type==='income'||t.type==='refund') ? 1 : t.type==='expense' ? -1 : 0;
   const col = sign>0 ? 'text-mint' : sign<0 ? 'text-slate-100' : 'text-slate-400';
   const badge = t.type==='expense'
-    ? (t.is_necessary ? '<span class="rounded-full bg-mint/10 text-mint border border-mint/30 px-2 py-0.5 text-[10px] font-medium">Necessaria</span>'
+    ? (t.is_necessary ? '<span class="rounded-full bg-mint/10 text-mint border border-mint/30 px-2 py-0.5 text-[10px] font-medium">Necessità</span>'
                       : '<span class="rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/30 px-2 py-0.5 text-[10px] font-medium">Casuale</span>') : '';
   const tags = (t.tags||[]).map(x => `<span class="text-[10px] text-slate-500">#${esc(x)}</span>`).join(' ');
   return `<div class="flex items-center gap-3 p-3">
@@ -250,7 +281,7 @@ function row(t, withDel){
       <div class="mt-0.5 flex flex-wrap gap-1.5 items-center">${badge}${tags}</div>
     </div>
     <div class="text-right"><div class="tabular text-sm font-semibold ${col}">${sign>0?'+':sign<0?'−':''}${eur(t.amount)}</div>
-    ${withDel?`<button onclick="rmTx('${t.id}')" class="text-xs text-slate-500 hover:text-red-400">Elimina</button>`:''}</div></div>`;
+    ${withActions?`<div class="mt-1 flex gap-2 justify-end"><button onclick="txForm('${t.type}','${t.id}')" class="text-xs text-mint hover:underline">Modifica</button><button onclick="rmTx('${t.id}')" class="text-xs text-slate-500 hover:text-red-400">Elimina</button></div>`:''}</div></div>`;
 }
 const sorted = () => [...S.transactions].sort((x,y) => y.date.localeCompare(x.date) || (y.created_at||'').localeCompare(x.created_at||''));
 function rmTx(id){
@@ -272,7 +303,8 @@ function viewDash(){
       <span class="h-3 w-3 rounded-full" style="background:${esc(a.color)}"></span>
       <div class="flex-1 min-w-0"><div class="text-sm font-medium truncate">${esc(a.name)}</div><div class="text-xs text-slate-400">${ACC_LBL[a.type]}</div></div>
       <div class="text-right"><div class="tabular text-sm font-semibold">${eur(balance(a))}</div>
-      <button onclick="reconc('${a.id}')" class="text-xs text-mint hover:underline">Riconcilia saldo</button></div></div>`).join('')
+      <button onclick="reconc('${a.id}')" class="text-xs text-mint hover:underline">Riconcilia saldo</button>
+      <div class="mt-1 flex gap-2 justify-end"><button onclick="newItem('account','${a.id}')" class="text-xs text-slate-400 hover:text-mint">Modifica</button><button onclick="removeItem('account','${a.id}')" class="text-xs text-slate-500 hover:text-red-400">Elimina</button></div></div></div>`).join('')
     || `<div class="${CARD} text-sm text-slate-400">Nessun conto. <button class="text-mint underline" onclick="newItem('account')">Creane uno</button></div>`;
   const recent = sorted().slice(0,5).map(t => row(t,false)).join('') || '<div class="p-4 text-sm text-slate-400">Nessun movimento.</div>';
   $('#view').innerHTML = `
@@ -321,8 +353,10 @@ function viewTx(){
           ${S.accounts.map(a => `<option value="${a.id}" ${V.acc===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
       <input type="search" placeholder="Cerca descrizione o tag…" value="${esc(V.q)}" class="${IN}" oninput="setTx('q',this.value)"></div>
     <div id="list" class="bg-surf rounded-2xl border border-slate-800 divide-y divide-slate-800"></div>
-    <div id="sum" class="text-xs text-slate-500 mt-2 text-right"></div>`;
+    <div id="sum" class="text-xs text-slate-500 mt-2 text-right"></div>
+    <section class="${CARD} mt-8"><div class="flex items-center justify-between mb-3"><h2 class="font-semibold">Categorie</h2><button class="${B2}" onclick="newItem('category')">+ Categoria</button></div><div id="category-list" class="space-y-2"></div></section>`;
   renderList();
+  renderCategories();
 }
 const setTx = (k,v) => { V[k] = v; renderList(); };
 function renderList(){
@@ -334,69 +368,89 @@ function renderList(){
   $('#list').innerHTML = list.map(t => row(t,true)).join('') || '<div class="p-6 text-center text-sm text-slate-400">Nessun movimento trovato.</div>';
   $('#sum').textContent = `${list.length} movimenti`;
 }
+function renderCategories(){
+  const el = $('#category-list'); if (!el) return;
+  el.innerHTML = S.categories.map(c => `<div class="flex items-center gap-3 rounded-xl bg-bg border border-slate-800 px-3 py-2">
+    <span class="text-lg">${esc(c.icon||'🏷️')}</span><div class="min-w-0 flex-1"><div class="truncate text-sm">${esc(c.name)}</div><div class="text-xs text-slate-500">${c.type==='income'?'Entrata':'Uscita'}${c.monthly_budget!==null?` · Budget ${eur(c.monthly_budget)}`:''}</div></div>
+    <button onclick="newItem('category','${c.id}')" class="text-xs text-mint hover:underline">Modifica</button><button onclick="removeItem('category','${c.id}')" class="text-xs text-slate-500 hover:text-red-400">Elimina</button></div>`).join('') || '<p class="text-sm text-slate-500">Nessuna categoria.</p>';
+}
 
 /* Modulo rapido: Entrata / Uscita / Trasferimento / Rimborso */
 let T = 'expense';
-function txForm(type = T){
+function txForm(type = T, editId = null){
   T = type;
+  const existing = editId ? S.transactions.find(t => t.id === editId) : null;
+  EDIT_TX_ID = existing?.id || null;
   if (!S.accounts.length) return modal(`<p class="text-sm mb-3">Crea prima un conto.</p><button class="${B1}" onclick="newItem('account')">Nuovo conto</button>`);
-  const opt = arr => arr.map(x => `<option value="${x.id}">${esc(x.icon||'')} ${esc(x.name)}</option>`).join('');
+  const opt = (arr,selected) => arr.map(x => `<option value="${x.id}" ${x.id===selected?'selected':''}>${esc(x.icon||'')} ${esc(x.name)}</option>`).join('');
   const cats = S.categories.filter(c => c.type === (type==='income' ? 'income' : 'expense'));
   const tabs = [['income','Entrata'],['expense','Uscita'],['transfer','Trasf.'],['refund','Rimborso']];
   modal(`<div class="grid grid-cols-4 gap-1 rounded-xl bg-bg p-1 mb-4">${tabs.map(([k,l]) =>
-      `<button type="button" onclick="txForm('${k}')" class="rounded-lg py-2 text-xs font-medium ${k===type?SEG_ON:SEG_OFF}">${l}</button>`).join('')}</div>
+      `<button type="button" onclick="txForm('${k}',EDIT_TX_ID)" class="rounded-lg py-2 text-xs font-medium ${k===type?SEG_ON:SEG_OFF}">${l}</button>`).join('')}</div>
     <form id="f" class="space-y-3">
-      <div><label class="text-xs text-slate-400">${type==='transfer'?'Da conto':'Conto'}</label><select name="account_id" class="${IN}">${opt(S.accounts)}</select></div>
-      ${type==='transfer' ? `<div><label class="text-xs text-slate-400">A conto</label><select name="to_account_id" class="${IN}">${opt(S.accounts)}</select></div>` : `
+      <div><label class="text-xs text-slate-400">${type==='transfer'?'Da conto':'Conto'}</label><select name="account_id" class="${IN}">${opt(S.accounts,existing?.account_id)}</select></div>
+      ${type==='transfer' ? `<div><label class="text-xs text-slate-400">A conto</label><select name="to_account_id" class="${IN}">${opt(S.accounts,existing?.to_account_id)}</select></div>` : `
       <div><label class="text-xs text-slate-400">Categoria${type==='refund'?' di spesa da scalare':''}</label>
-        <select name="category_id" class="${IN}"><option value="">—</option>${opt(cats)}</select></div>`}
+        <select name="category_id" class="${IN}"><option value="" ${!existing?.category_id?'selected':''}>— Seleziona —</option>${opt(cats,existing?.category_id)}</select></div>`}
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-xs text-slate-400">Importo (€)</label><input name="amount" inputmode="decimal" required class="${IN}" placeholder="0,00"></div>
-        <div><label class="text-xs text-slate-400">Data</label><input type="date" name="date" value="${today()}" required class="${IN}"></div></div>
-      ${type==='expense' ? `<label class="flex items-center justify-between rounded-xl bg-bg border border-slate-800 px-3 py-2.5 cursor-pointer">
-        <span class="text-sm">Necessaria</span><input type="checkbox" name="is_necessary" checked class="h-5 w-5 accent-[#29FFC2]"
-        onchange="this.previousElementSibling.textContent=this.checked?'Necessaria':'Casuale / Desiderio'"></label>` : ''}
-      <input name="description" placeholder="Descrizione" class="${IN}">
-      <input name="tags" placeholder="Tag separati da virgola" class="${IN}">
-      <div class="flex gap-2 pt-1"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">Salva</button></div>
+        <div><label class="text-xs text-slate-400">Importo (€)</label><input name="amount" inputmode="decimal" value="${existing?esc(existing.amount):''}" required class="${IN}" placeholder="0,00"></div>
+        <div><label class="text-xs text-slate-400">Data</label><input type="date" name="date" value="${existing?.date||today()}" required class="${IN}"></div></div>
+      ${type==='expense' ? `<div><label class="text-xs text-slate-400">Tipo di spesa</label><select name="is_necessary" class="${IN}">
+        <option value="true" ${!existing || existing.is_necessary!==false?'selected':''}>Necessità</option><option value="false" ${existing?.is_necessary===false?'selected':''}>Casuale</option></select></div>` : ''}
+      <input name="description" value="${esc(existing?.description||'')}" placeholder="Descrizione" class="${IN}">
+      <input name="tags" value="${esc((existing?.tags||[]).join(', '))}" placeholder="Tag separati da virgola" class="${IN}">
+      <div class="flex gap-2 pt-1"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">${existing?'Salva modifiche':'Salva'}</button></div>
     </form>`);
   $('#f').onsubmit = saveTx;
 }
 function saveTx(e){
   e.preventDefault();
-  const f = new FormData(e.target), type = T;
+  const f = new FormData(e.target), type = T, existing = EDIT_TX_ID ? S.transactions.find(t => t.id===EDIT_TX_ID) : null;
   const amount = parseFloat(String(f.get('amount')).replace(',','.'));
   if (!(amount > 0)) return toast('Importo non valido');
   const r = {type, account_id:f.get('account_id'), to_account_id:type==='transfer'?f.get('to_account_id'):null,
     category_id:type==='transfer'?null:(f.get('category_id')||null), amount,
-    is_necessary:type==='expense'?!!f.get('is_necessary'):null, date:f.get('date'),
-    description:f.get('description')||null, notes:null,
+    is_necessary:type==='expense'?f.get('is_necessary')==='true':null, date:f.get('date'),
+    description:f.get('description')||null, notes:existing?.notes||null,
     tags:(f.get('tags')||'').split(',').map(s => s.trim().replace(/^#/,'')).filter(Boolean)};
   if (type!=='transfer' && !r.category_id) return toast('Selezionare una categoria');
   if (type==='transfer' && r.account_id===r.to_account_id) return toast('Scegli due conti diversi');
-  ins('transactions', r); closeModal(); render();
+  if (EDIT_TX_ID) upd('transactions',EDIT_TX_ID,r); else ins('transactions', r);
+  EDIT_TX_ID=null; closeModal(); render();
 }
 
 /* Nuovo conto / nuova categoria */
-function newItem(kind = 'category'){
+function chooseEmoji(value){ $('#emoji-input').value=value; $('#emoji-panel').classList.add('hidden'); }
+function openEmojiPicker(){ $('#emoji-panel').classList.remove('hidden'); }
+function emojiField(value){
+  return `<div class="space-y-2"><label class="text-xs text-slate-400">Emoji</label><div class="flex gap-2"><input id="emoji-input" name="icon" type="text" inputmode="text" maxlength="8" onfocus="openEmojiPicker()" value="${esc(value||'')}" placeholder="Scegli un’emoji" class="${IN} flex-1"><button type="button" onclick="openEmojiPicker()" aria-label="Apri selettore emoji" class="${B2} text-lg">😊</button></div>
+    <div id="emoji-panel" class="hidden grid-cols-8 gap-1 rounded-xl border border-slate-800 bg-bg p-2">${EMOJIS.map(e=>`<button type="button" onclick="chooseEmoji('${e}')" class="rounded-lg p-2 text-xl hover:bg-slate-800" aria-label="${e}">${e}</button>`).join('')}</div></div>`;
+}
+function newItem(kind = 'category', editId = null){
   const isAcc = kind === 'account';
+  const item = editId ? (isAcc ? acc(editId) : cat(editId)) : null;
+  if (editId && !item) return toast('Elemento non trovato');
+  const num = v => { const n = parseFloat(String(v||'').replace(',','.')); return isNaN(n) ? null : n; };
   modal(`<div class="grid grid-cols-2 gap-1 rounded-xl bg-bg p-1 mb-4">
-      <button type="button" onclick="newItem('account')" class="rounded-lg py-2 text-xs font-medium ${isAcc?SEG_ON:SEG_OFF}">Nuovo conto</button>
-      <button type="button" onclick="newItem('category')" class="rounded-lg py-2 text-xs font-medium ${!isAcc?SEG_ON:SEG_OFF}">Nuova categoria</button></div>
-    <form id="nf" class="space-y-3"><input name="name" placeholder="Nome" required class="${IN}">
-    ${isAcc ? `<select name="type" class="${IN}">${Object.entries(ACC_LBL).map(([k,l]) => `<option value="${k}">${l}</option>`).join('')}</select>
-      <input name="initial_balance" inputmode="decimal" placeholder="Saldo iniziale (€)" class="${IN}">`
-    : `<select name="type" class="${IN}"><option value="expense">Uscita</option><option value="income">Entrata</option></select>
-      <input name="icon" placeholder="Emoji (es. 🛒)" maxlength="4" class="${IN}">
-      <input name="monthly_budget" inputmode="decimal" placeholder="Budget mensile (opzionale)" class="${IN}">`}
-    <label class="flex items-center gap-3 text-sm text-slate-400">Colore <input type="color" name="color" value="${isAcc?'#29FFC2':'#818cf8'}" class="h-9 w-14 rounded-lg border border-slate-800 bg-bg"></label>
-    <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">Crea</button></div></form>`);
+      <button type="button" onclick="newItem('account')" class="rounded-lg py-2 text-xs font-medium ${isAcc?SEG_ON:SEG_OFF}">Conti</button>
+      <button type="button" onclick="newItem('category')" class="rounded-lg py-2 text-xs font-medium ${!isAcc?SEG_ON:SEG_OFF}">Categorie</button></div>
+    <h3 class="font-semibold mb-3">${item?'Modifica '+(isAcc?'conto':'categoria'):'Nuov'+(isAcc?'o conto':'a categoria')}</h3>
+    <form id="nf" class="space-y-3"><input name="name" value="${esc(item?.name||'')}" placeholder="Nome" required class="${IN}">
+    ${isAcc ? `<select name="type" class="${IN}">${Object.entries(ACC_LBL).map(([k,l]) => `<option value="${k}" ${item?.type===k?'selected':''}>${l}</option>`).join('')}</select>
+      <input name="initial_balance" inputmode="decimal" value="${item?esc(item.initial_balance):''}" placeholder="Saldo iniziale (€)" class="${IN}">`
+    : `<select name="type" class="${IN}"><option value="expense" ${item?.type==='expense'?'selected':''}>Uscita</option><option value="income" ${item?.type==='income'?'selected':''}>Entrata</option></select>
+      ${emojiField(item?.icon||'')}
+      <input name="monthly_budget" inputmode="decimal" value="${item?.monthly_budget!==null&&item?.monthly_budget!==undefined?esc(item.monthly_budget):''}" placeholder="Budget mensile (opzionale)" class="${IN}">`}
+    <div class="flex items-center justify-between text-sm text-slate-400"><span>Colore</span><input type="color" name="color" value="${esc(item?.color||(isAcc?'#29FFC2':'#818cf8'))}" class="h-9 w-14 rounded-lg border border-slate-800 bg-bg cursor-pointer"></div>
+    <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">${item?'Salva modifiche':'Crea'}</button></div></form>`);
   $('#nf').onsubmit = e => {
     e.preventDefault();
-    const f = new FormData(e.target), num = v => { const n = parseFloat(String(v||'').replace(',','.')); return isNaN(n) ? null : n; };
+    const f = new FormData(e.target);
+    if (item && !isAcc && S.transactions.some(t=>t.category_id===item.id) && f.get('type')!==item.type) return toast('Non puoi cambiare il tipo di una categoria già usata');
     const r = isAcc ? {name:f.get('name'), type:f.get('type'), initial_balance:num(f.get('initial_balance'))||0, color:f.get('color')}
                     : {name:f.get('name'), type:f.get('type'), icon:f.get('icon')||'🏷️', color:f.get('color'), monthly_budget:num(f.get('monthly_budget'))};
-    ins(isAcc?'accounts':'categories', r); closeModal(); render();
+    if (item) upd(isAcc?'accounts':'categories',item.id,r); else ins(isAcc?'accounts':'categories', r);
+    closeModal(); render();
   };
 }
 
@@ -410,25 +464,53 @@ function viewAn(){
   const inc = sum(t => t.type==='income'), ex = sum(t => t.type==='expense'), rf = sum(t => t.type==='refund');
   const spese = ex - rf, risp = inc - spese, rate = inc > 0 ? risp/inc*100 : 0;
   const nec = sum(t => t.type==='expense' && t.is_necessary), cas = ex - nec, pn = ex > 0 ? nec/ex*100 : 0;
+  const catTotal = (c,type) => ms.filter(t=>t.category_id===c.id && t.type===type).reduce((s,t)=>s+ +t.amount,0);
+  const incomeRows = S.categories.filter(c=>c.type==='income').map(c=>({id:c.id,icon:c.icon,name:c.name,color:c.color,value:catTotal(c,'income')}));
+  const expenseRows = S.categories.filter(c=>c.type==='expense').map(c=>({id:c.id,icon:c.icon,name:c.name,color:c.color,value:catTotal(c,'expense')-catTotal(c,'refund')}));
+  const noCatIncome = sum(t=>t.type==='income'&&!t.category_id), noCatExpense = sum(t=>t.type==='expense'&&!t.category_id)-sum(t=>t.type==='refund'&&!t.category_id);
+  if (noCatIncome) incomeRows.push({icon:'🏷️',name:'Senza categoria',color:'#64748b',value:noCatIncome});
+  if (noCatExpense) expenseRows.push({icon:'🏷️',name:'Senza categoria',color:'#64748b',value:noCatExpense});
+  const catList = rows => rows.map(c=>`<div class="flex items-center gap-2 py-2 border-b border-slate-800 last:border-0"><span class="h-2.5 w-2.5 rounded-full" style="background:${esc(c.color||'#64748b')}"></span><span class="text-sm flex-1 truncate">${esc(c.icon||'🏷️')} ${esc(c.name)}</span><span class="tabular text-sm font-medium">${eur(c.value)}</span></div>`).join('')||'<p class="text-sm text-slate-500">Nessuna categoria.</p>';
+  const budgets = S.categories.filter(c=>c.type==='expense'&&c.monthly_budget!==null&&c.monthly_budget!==undefined);
+  const budgetHtml = budgets.map(c=>{
+    const spent=expenseRows.find(x=>x.id===c.id)?.value||0, budget=+c.monthly_budget||0, pct=budget>0?spent/budget*100:0;
+    return `<div class="py-2"><div class="flex items-center gap-2 text-sm"><span class="flex-1 truncate">${esc(c.icon||'🏷️')} ${esc(c.name)}</span><span class="tabular">${eur(spent)} / ${eur(budget)}</span></div><div class="h-2 rounded-full bg-slate-800 mt-1"><div class="h-2 rounded-full ${pct>100?'bg-red-400':'bg-mint'}" style="width:${Math.min(Math.max(pct,0),100)}%"></div></div><div class="text-right text-[11px] ${pct>100?'text-red-400':'text-slate-500'}">${pct>100?'oltre budget di '+eur(spent-budget):pct.toFixed(0)+'% del budget'}</div></div>`;
+  }).join('')||'<p class="text-sm text-slate-500">Imposta un budget mensile modificando una categoria.</p>';
+  const annual = S.transactions.filter(t=>t.date.startsWith(A.y+'-')&&!(t.tags||[]).includes('rettifica'));
+  const annualValues = Array.from({length:12},(_,i)=>{
+    const month=`${A.y}-${pad(i+1)}`, tx=annual.filter(t=>t.date.startsWith(month));
+    const income=tx.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0);
+    const expense=tx.filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0)-tx.filter(t=>t.type==='refund').reduce((s,t)=>s+ +t.amount,0);
+    return {income,expense,saving:income-expense};
+  });
   const k = (l,v,c='') => `<div class="${CARD}"><div class="text-xs text-slate-400">${l}</div><div class="mt-1 text-xl font-semibold tabular ${c}">${v}</div></div>`;
   $('#view').innerHTML = `
-    <div class="mb-4"><h1 class="text-xl font-semibold mb-3">Analisi mensile</h1>${dateSel(A,'setAn',false)}</div>
+    <div class="mb-4"><h1 class="text-xl font-semibold mb-3">Analisi completa</h1>${dateSel(A,'setAn',false)}</div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${k('Entrate',eur(inc),'text-mint')}${k('Uscite (nette rimborsi)',eur(spese))}
       ${k('Risparmio',eur(risp),risp<0?'text-red-400':'text-mint')}${k('Tasso di risparmio',rate.toFixed(1)+'%',rate<0?'text-red-400':'')}</div>
-    <div class="${CARD} mt-3"><h2 class="font-semibold mb-3">Spese: Necessarie vs Casuali</h2>
+    <div class="grid md:grid-cols-2 gap-3 mt-3"><div class="${CARD}"><h2 class="font-semibold mb-2">Entrate per categoria</h2>${catList(incomeRows)}</div><div class="${CARD}"><h2 class="font-semibold mb-2">Uscite nette per categoria</h2>${catList(expenseRows)}</div></div>
+    <div class="${CARD} mt-3"><h2 class="font-semibold mb-2">Budget mensili · ${MESI[+A.m-1]} ${A.y}</h2>${budgetHtml}</div>
+    <div class="${CARD} mt-3"><h2 class="font-semibold mb-3">Andamento mensile · ${A.y}</h2><div class="h-64"><canvas id="trend"></canvas></div></div>
+    <div class="${CARD} mt-3"><h2 class="font-semibold mb-3">Spese: Necessità e Casuale</h2>
       <div class="grid md:grid-cols-2 gap-4 items-center">
         <div class="h-52"><canvas id="ch"></canvas></div>
         <div class="space-y-3 text-sm">
-          <div><div class="flex justify-between"><span class="text-slate-300">Necessarie</span><b class="tabular text-mint">${eur(nec)} · ${pn.toFixed(0)}%</b></div>
+          <div><div class="flex justify-between"><span class="text-slate-300">Necessità</span><b class="tabular text-mint">${eur(nec)} · ${pn.toFixed(0)}%</b></div>
             <div class="h-2 rounded-full bg-amber-400/20 mt-1"><div class="h-2 rounded-full bg-mint" style="width:${pn}%"></div></div></div>
-          <div class="flex justify-between"><span class="text-slate-300">Casuali / Desideri</span><b class="tabular text-amber-300">${eur(cas)} · ${ex>0?(100-pn).toFixed(0):0}%</b></div>
+          <div class="flex justify-between"><span class="text-slate-300">Casuale</span><b class="tabular text-amber-300">${eur(cas)} · ${ex>0?(100-pn).toFixed(0):0}%</b></div>
           <p class="text-xs text-slate-500">Rimborsi sottratti dal totale uscite; rettifiche di saldo escluse.</p></div></div></div>`;
   if (chart) chart.destroy();
+  if (trendChart) trendChart.destroy();
   Chart.defaults.color = '#94a3b8';
   chart = new Chart($('#ch'), {type:'doughnut',
-    data:{labels:['Necessarie','Casuali'], datasets:[{data:ex>0?[nec,cas]:[1,0], backgroundColor:ex>0?['#29FFC2','#f59e0b']:['#1e293b','#1e293b'], borderColor:'#111827', borderWidth:3}]},
+    data:{labels:['Necessità','Casuale'], datasets:[{data:ex>0?[nec,cas]:[1,0], backgroundColor:ex>0?['#29FFC2','#f59e0b']:['#1e293b','#1e293b'], borderColor:'#111827', borderWidth:3}]},
     options:{cutout:'70%', maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}});
+  trendChart = new Chart($('#trend'),{type:'line',data:{labels:MESI.map(m=>m.slice(0,3)),datasets:[
+    {label:'Entrate',data:annualValues.map(x=>x.income),borderColor:'#29FFC2',backgroundColor:'#29FFC2',tension:.3},
+    {label:'Uscite nette',data:annualValues.map(x=>x.expense),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3},
+    {label:'Risparmio',data:annualValues.map(x=>x.saving),borderColor:'#818cf8',backgroundColor:'#818cf8',tension:.3}
+  ]},options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>eur(v)}}}}});
 }
 
 /* ===================== TAB 4 · PATRIMONIO & CALENDARIO (segnaposto) ===================== */
@@ -498,7 +580,7 @@ async function boot(){
   if (!DEMO){
     if (!sb){
       sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT'){ S = {accounts:[],categories:[],transactions:[]}; showAuth(); } });
+      sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT'){ currentEmail=''; S = {accounts:[],categories:[],transactions:[]}; showAuth(); } });
       // Al ritorno sull'app ricarica i dati (per vedere le modifiche fatte da un altro dispositivo)
       const sync = () => {
         const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
@@ -509,6 +591,7 @@ async function boot(){
     }
     const {data:{session}} = await sb.auth.getSession();
     if (!session) return showAuth();
+    currentEmail = session.user?.email || '';
   }
   await load(); render();
 }
@@ -516,3 +599,4 @@ boot();
 </script>
 </body>
 </html>
+
