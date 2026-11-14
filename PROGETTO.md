@@ -4,7 +4,7 @@
 > leggi questo file prima di toccare il codice e **aggiornalo ogni volta che cambi qualcosa**
 > (vedi «Registro modifiche» in fondo). Così chi arriva dopo sa cosa è stato fatto e perché.
 
-Ultimo aggiornamento di questo file: 2026-11-14 (scritto da Claude).
+Ultimo aggiornamento di questo file: 2026-11-14 (aggiornato da ChatGPT/Codex).
 
 ---
 
@@ -25,7 +25,7 @@ Interfaccia e messaggi sono **in italiano**.
 | Libreria | Versione | Note |
 |---|---|---|
 | Tailwind CSS (Play CDN) | `cdn.tailwindcss.com` | colori custom in `tailwind.config`: `bg`, `surf`, `mint` |
-| Chart.js | 4.4.1 (jsdelivr) | ciambella e grafico a barre/linea |
+| Chart.js | 4.4.1 (jsdelivr) | ciambella Necessità/Casuale nell'Analisi |
 | @supabase/supabase-js | 2.109.0 (jsdelivr, UMD) | **serve una versione recente**: la 2.45.4 usata all'inizio è troppo vecchia per le chiavi `sb_publishable_…` |
 
 ## 4. File del repository
@@ -97,6 +97,7 @@ create table if not exists public.transactions (
   notes         text,
   tags          text[] not null default '{}',
   created_at    timestamptz not null default now(),
+  constraint transactions_category_required check (type = 'transfer' or category_id is not null),
   constraint transfer_consistency check (
     (type = 'transfer' and to_account_id is not null and to_account_id <> account_id)
     or (type <> 'transfer' and to_account_id is null)
@@ -123,13 +124,23 @@ create policy "categories: solo le proprie" on public.categories
 -- Per le transazioni controlliamo anche che i conti collegati siano dell'utente
 create policy "transactions: solo le proprie" on public.transactions
   for all to authenticated
-  using (auth.uid() = user_id)
+  using (
+    auth.uid() = user_id
+    and (category_id is null or exists (
+      select 1 from public.categories c where c.id = transactions.category_id and c.user_id = auth.uid()
+    ))
+  )
   with check (
     auth.uid() = user_id
+    and (category_id is null or exists (
+      select 1 from public.categories c where c.id = transactions.category_id and c.user_id = auth.uid()
+    ))
     and exists (select 1 from public.accounts a where a.id = account_id and a.user_id = auth.uid())
     and (to_account_id is null or exists (select 1 from public.accounts a where a.id = to_account_id and a.user_id = auth.uid()))
   );
 ```
+
+Nota sul progetto live: il vincolo `transactions_category_required` è stato aggiunto come `NOT VALID` per preservare una transazione storica senza categoria; continua comunque a controllare nuove righe e righe modificate. `Riconcilia saldo` crea attualmente una transazione di rettifica senza categoria: va sistemata prima di usare quella funzione, altrimenti il nuovo vincolo la rifiuta.
 
 ### Regole del modello dati
 - `accounts.type`: `cash`, `card`, `savings`, `investment`.
@@ -151,20 +162,21 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 
 **Dati**
 - `load()`: legge da localStorage (demo) o da Supabase; al primo accesso crea le categorie di default.
-- `ins()`, `upd()`, `rm()`: scritture **ottimistiche** (la schermata si aggiorna subito, poi si salva); in caso di errore compare un avviso e i dati vengono ricaricati. In modalità Supabase le scritture passano per una **coda** (`Q`) così i conti vengono salvati prima delle transazioni che li usano.
+- `ins()`, `upd()`, `del()`, `rmTx()`: inserimento, modifica e cancellazione; le scritture Supabase passano per la coda `Q` e, in caso di errore, i dati vengono ricaricati. In modalità Supabase le scritture passano per una **coda** (`Q`) così i conti vengono salvati prima delle transazioni che li usano.
 - Gli id sono UUID generati dal client (`uid()`, con alternativa se `crypto.randomUUID` non esiste: succede su `http://IP`).
 - Sincronizzazione tra dispositivi: ricarica i dati al ritorno sulla scheda e ogni 15 secondi (salta se l'utente sta scrivendo o c'è un modale aperto).
 - `importLocal()`: importa nel database i dati salvati in localStorage (con nuovi id).
 
 **Interfaccia**
-- Schede: **Dashboard**, **Transazioni**, **Analisi**, **Patrimonio & Calendario** (segnaposto).
+- Schede: **Dashboard**, **Transazioni**, **Analisi**, **Patrimonio & Calendario** (segnaposto). Email e stato Supabase sono nel piè di pagina della sidebar desktop.
 - `render()` ridisegna la scheda corrente; `modal()` / `closeModal()` per i pannelli; `dateSel()` crea i due menu **Mese + Anno** (mese in italiano, «Tutti i mesi» solo in Transazioni).
 - Tutto il testo inserito dall'utente passa da `esc()` (protezione dall'HTML iniettato).
 - Errori JavaScript visibili in una barra rossa (`showFatal`); sulla schermata di accesso una riga verifica il collegamento a Supabase e mostra la versione (`APP_VERSION`).
 
-**Dashboard**: 4 card riepilogative, elenco conti con «Riconcilia saldo» e «Modifica», ultimi 5 movimenti con badge **Necessità / Casuale**.
-**Transazioni**: pulsante flottante `+` (modulo con 4 schede: Entrata, Uscita, Trasferimento, Rimborso), lista filtrabile (mese/anno, tipo, conto, ricerca su descrizione/tag/categoria), «Conti e categorie» per creare/modificare/eliminare.
-**Analisi**: KPI, spese per categoria con barre e confronto con il budget, ciambella Necessità vs Casuale, andamento degli ultimi 6 mesi.
+**Dashboard**: 4 card riepilogative, conti con «Riconcilia saldo», modifica/eliminazione, ultimi 5 movimenti.
+**Transazioni**: pulsante flottante  (Entrata, Uscita, Trasferimento, Rimborso), lista filtrabile e modificabile/eliminabile. Il menu «Gestisci categorie» è sopra la lista; da lì si vedono, creano, modificano ed eliminano categorie. Conti e categorie sono indipendenti.
+**Analisi**: KPI del mese/anno selezionati, entrate e uscite nette per categoria, confronto dei budget mensili e ciambella Necessità/Casuale. Il tasso di risparmio è mensile; non c'è un grafico di andamento annuale.
+**Moduli**: modifica/eliminazione di conti, categorie e movimenti; non si eliminano conti o categorie ancora usati. Le uscite hanno menu «Necessità» / «Casuale». Selezione emoji con pulsante quadrato e pannello interno; il colore si seleziona dal quadratino.
 
 ## 8. Pubblicazione
 - Ospitata su **GitHub Pages** (repo pubblico, ramo `main`, cartella radice). Indirizzo del tipo `https://UTENTE.github.io/hub-finanza/`.
@@ -188,11 +200,14 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 | 2.0 | Tema Dark Mode fintech (#29FFC2), menu Mese + Anno, barra mobile con area sicura |
 | 2.0+ | Ritorno a Supabase con login, scritture ottimistiche, sincronizzazione, importazione dati locali |
 | 2.1–2.4 | Libreria Supabase 2.109.0, messaggi di errore in italiano, email di conferma con reinvio, riga di diagnostica, barra errori, controllo campi, testo «Caricamento…» |
-| 2.5 | Modifica/eliminazione di transazioni, conti e categorie; Analisi con categorie, budget e andamento 6 mesi; selezione colore solo dal quadratino; tipo di spesa con menu «Necessità» / «Casuale»; selettore emoji integrato per le categorie. **Scritta da Claude, controllata solo nella sintassi, NON provata in un browser e NON ancora confermata nel repo** |
+| 2.5 | Modifica/eliminazione di movimenti, conti e categorie; Analisi per categoria e budget mensile; selezione colore dal quadratino; menu «Necessità» / «Casuale»; selettore emoji a pulsante quadrato; email e stato sincronizzazione nella sidebar. Commit presenti su `main`; non provata in browser. |
 
 ## 11. Da fare
-- Scheda **Patrimonio & Calendario**: evoluzione del patrimonio nel tempo, calendario con scadenze e spese ricorrenti.
-- Sezione **Investimenti** (c'era un foglio INVESTIMENTI nel vecchio tracker).
+- Scheda **Patrimonio**: fotografia di fine mese e ripartizione liquidità/investimenti.
+- **Calendario**: scadenze e movimenti ricorrenti.
+- **Investimenti**: operazioni, quote, prezzi, commissioni e valore attuale.
+- **Budget 50/30/20**, obiettivi/accantonamenti, autonomia finanziaria e calcolatore debiti.
+- Valutare un riepilogo AI su dati aggregati e collegamenti bancari tramite un fornitore autorizzato, con consenso esplicito.
 - Miglioramento della grafica.
 - Esportazione/importazione dei dati (file JSON) e copie di sicurezza.
 - Pubblicazione automatica (Claude Code o GitHub) per non dover ricaricare `index.html` a mano.
@@ -205,5 +220,4 @@ perché serve a capire a colpo d'occhio quale versione è davvero online.
 ### Registro modifiche
 | Data | Chi | Versione | Cosa è stato fatto | Note / da verificare |
 |---|---|---|---|---|
-| 2026-11-14 | Claude | 2.5 | Vedi §10 | Non provata in browser; il repo potrebbe contenere modifiche successive fatte con Codex (ChatGPT): confrontare prima di sovrascrivere `index.html` |
-| _data_ | _ChatGPT/Codex_ | _…_ | _da compilare_ | _…_ |
+| 2026-11-14 | ChatGPT/Codex | 2.5 | RLS verifica categoria proprietaria; categoria resa obbligatoria per movimenti non trasferimenti; UI con messaggio dedicato; modifica/eliminazione per movimenti, conti e categorie; analisi per categoria e budget; menu categorie sopra i movimenti; emoji a pulsante, menu Necessità/Casuale, colore da quadratino; email in sidebar; rimosso grafico andamento mensile. | Modifiche su `main`; nessun test browser. Una rettifica di saldo senza categoria è incompatibile col nuovo vincolo e va corretta. |
