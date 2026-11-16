@@ -3,21 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0f19">
+<meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Hub Finanza</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
-  // Palette Dark Fintech: sfondo #0b0f19, superfici #111827, accento menta #29FFC2
-  tailwind.config = { theme: { extend: { colors: { bg:'#0b0f19', surf:'#111827', mint:'#29FFC2' } } } };
+  // Palette Hub: nero profondo, superfici antracite e accento lime
+  tailwind.config = { theme: { extend: { colors: { bg:'#000000', surf:'#10130d', mint:'#a3e635' } } } };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.109.0"></script>
 <style>
   :root{color-scheme:dark}
-  html{background:#0b0f19}
-  body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+  html{background:#000}
+  body{font-family:"Comfortaa",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;background-color:#000;background-image:radial-gradient(ellipse 42rem 28rem at 16% 8%,rgba(132,204,22,.12),transparent 70%),radial-gradient(ellipse 36rem 32rem at 90% 46%,rgba(163,230,53,.065),transparent 72%);background-attachment:fixed}
   .tabular{font-variant-numeric:tabular-nums}
+  body .bg-surf{background-color:rgba(255,255,255,.035);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
   /* Barra mobile: fissa in basso, con area sicura (notch / barra gesti) */
   #botnav{z-index:30;padding-bottom:env(safe-area-inset-bottom)}
   /* Il contenuto lascia sempre spazio sotto: barra (~60px) + tasto + area sicura */
@@ -38,8 +42,15 @@
 <div id="auth" class="hidden fixed inset-0 z-[70] bg-bg items-center justify-center p-6"></div>
 
 <!-- Sidebar desktop -->
-<aside class="hidden md:flex fixed inset-y-0 left-0 w-60 flex-col border-r border-slate-800 bg-surf p-4 z-20">
-  <div class="text-lg font-semibold mb-6"><span class="text-mint">●</span> Hub Finanza</div>
+<aside class="hidden md:flex fixed inset-y-0 left-0 w-60 flex-col border-r border-white/10 bg-black/65 backdrop-blur-xl p-4 z-20">
+  <div class="flex items-center gap-3 mb-8 px-1">
+    <svg class="h-10 w-10 shrink-0" viewBox="0 0 48 48" role="img" aria-label="Logo Hub Finanza">
+      <defs><filter id="logoGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      <rect x="2" y="2" width="44" height="44" rx="15" fill="#080b05" stroke="#a3e635" stroke-opacity=".24"/>
+      <text x="24" y="34" text-anchor="middle" font-family="Comfortaa, sans-serif" font-size="30" font-weight="700" fill="#a3e635" filter="url(#logoGlow)">€</text>
+    </svg>
+    <span class="text-base font-semibold tracking-tight">Hub Finanza</span>
+  </div>
   <nav id="sidenav" class="space-y-1"></nav>
   <div id="sidefoot" class="mt-auto text-xs text-slate-500 leading-relaxed"></div>
 </aside>
@@ -47,7 +58,7 @@
 <div class="md:pl-60"><main id="view" class="max-w-4xl mx-auto px-4 pt-6"><p class="text-sm text-slate-500">Caricamento… (v2.4)</p></main></div>
 
 <!-- Barra di navigazione mobile -->
-<nav id="botnav" class="md:hidden fixed bottom-0 inset-x-0 grid grid-cols-5 border-t border-slate-800 bg-surf"></nav>
+<nav id="botnav" class="md:hidden fixed bottom-0 inset-x-0 grid grid-cols-5 border-t border-white/10 bg-black/70 backdrop-blur-xl"></nav>
 
 <!-- Tasto flottante + -->
 <button id="fab" onclick="txForm('expense')" aria-label="Nuova transazione"
@@ -66,7 +77,7 @@ const SUPABASE_URL = 'https://ddfeeqybmxladzunkpbg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_F3q51ck3EEkWZ8dfPHiyWg_HkwpiRBW';
 const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 let sb;
-const APP_VERSION = '3.2';
+const APP_VERSION = '3.3';
 // Qualsiasi errore di JavaScript viene mostrato in una barra rossa (niente più pagina muta)
 function showFatal(m){
   let b = document.getElementById('fatal');
@@ -84,16 +95,24 @@ let EDIT_TX_ID = null, currentEmail = '';
 const V = {tab:'dash', m:pad(now.getMonth()+1), y:String(now.getFullYear()), type:'', acc:'', q:''};
 const A = {m:pad(now.getMonth()+1), y:String(now.getFullYear())};
 const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
-const TABS = [['dash','Dashboard','🏠'],['tx','Transazioni','↔️'],['an','Analisi','📊'],['pat','Patrimonio','📈'],['goals','Obiettivi','🎯']];
+const TABS = [['dash','Dashboard','person'],['tx','Transazioni','wallet'],['an','Analisi','pie'],['pat','Patrimonio','growth'],['goals','Obiettivi','clipboard']];
+const NAV_ICONS = {
+  person:'<circle cx="12" cy="7.5" r="3.2"/><path d="M4.5 20c.6-4 3.2-6 7.5-6s6.9 2 7.5 6"/>',
+  wallet:'<path d="M3.5 6.5h15a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2h13"/><path d="M3 9h17.5v6H16a3 3 0 0 1 0-6h4.5"/><circle cx="16" cy="12" r=".7"/>',
+  pie:'<path d="M11 3.1A9 9 0 1 0 20.9 13H11z"/><path d="M14 3.1A9 9 0 0 1 20.9 10H14z"/>',
+  growth:'<path d="M4 20h17M5 18v-3h3v3M10 18v-6h3v6M15 18V8h3v10"/><path d="m6 11 5-4 3 1 5-5m-4 0h4v4"/>',
+  clipboard:'<rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9 4.5v-1A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5v1M8.5 10h7M8.5 14h7M8.5 18h4"/>'
+};
+const navIcon = (key,size='h-5 w-5') => '<svg class="'+size+' shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(NAV_ICONS[key]||'')+'</svg>';
 const TYPE_LBL = {income:'Entrata', expense:'Uscita', transfer:'Trasferimento', refund:'Rimborso'};
 const ACC_LBL = {cash:'Contanti', card:'Carta', savings:'Risparmio', investment:'Investimenti'};
-const CARD = 'bg-surf rounded-2xl border border-slate-800 p-4';
-const IN = 'w-full rounded-xl border border-slate-800 bg-bg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint';
-const B1 = 'rounded-xl bg-mint text-bg px-4 py-2.5 text-sm font-semibold hover:brightness-110';
-const B2 = 'rounded-xl border border-slate-800 bg-surf px-3 py-2 text-xs font-medium text-slate-200 hover:border-mint/60';
+const CARD = 'bg-white/[0.045] backdrop-blur-xl rounded-3xl border border-white/[0.09] shadow-[0_8px_32px_rgba(132,204,22,0.035)] p-4';
+const IN = 'w-full rounded-2xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint';
+const B1 = 'rounded-2xl bg-mint text-bg px-4 py-2.5 text-sm font-semibold hover:brightness-110 shadow-[0_0_22px_rgba(163,230,53,0.15)]';
+const B2 = 'rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur px-3 py-2 text-xs font-medium text-slate-200 hover:border-mint/50 hover:bg-white/[0.07]';
 const SEG_ON = 'bg-surf text-mint border border-mint/40', SEG_OFF = 'text-slate-400 border border-transparent';
 const DEFAULT_CATS = [
-  {name:'Stipendio', type:'income',  icon:'💼', color:'#29FFC2', monthly_budget:null},
+  {name:'Stipendio', type:'income',  icon:'💼', color:'#a3e635', monthly_budget:null},
   {name:'Altre entrate', type:'income', icon:'💰', color:'#14b8a6', monthly_budget:null},
   {name:'Spesa',     type:'expense', icon:'🛒', color:'#818cf8', monthly_budget:400},
   {name:'Casa',      type:'expense', icon:'🏠', color:'#38bdf8', monthly_budget:null},
@@ -137,7 +156,7 @@ const save = () => localStorage.setItem(LS_KEY, JSON.stringify(S));
 
 function seed(){
   const d = n => new Date(Date.now()-n*864e5).toISOString().slice(0,10);
-  const AC = [['Portafoglio','cash',120,'#29FFC2'],['Carta Principale','card',1500,'#818cf8'],
+  const AC = [['Portafoglio','cash',120,'#a3e635'],['Carta Principale','card',1500,'#818cf8'],
               ['Conto Deposito','savings',5000,'#38bdf8'],['Broker','investment',3000,'#f59e0b']]
     .map(([name,type,initial_balance,color]) => ({id:uid(),name,type,initial_balance,color}));
   const C = DEFAULT_CATS.map(c => ({id:uid(),...c}));
@@ -250,14 +269,14 @@ async function importLocal(){
 /* ===================== NAVIGAZIONE & MODALI ===================== */
 function nav(){
   const on = k => V.tab === k;
-  $('#sidenav').innerHTML = TABS.map(([k,l,i]) => `<button onclick="go('${k}')" class="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm border ${on(k)?'bg-mint/10 text-mint border-mint/30 font-medium':'text-slate-400 border-transparent hover:bg-slate-800/60'}"><span>${i}</span>${l}</button>`).join('');
-  $('#botnav').innerHTML = TABS.map(([k,l,i]) => `<button onclick="go('${k}')" class="flex flex-col items-center py-2 text-[11px] ${on(k)?'text-mint font-medium':'text-slate-500'}"><span class="text-lg">${i}</span>${l}</button>`).join('');
+  $('#sidenav').innerHTML = TABS.map(([k,l,i]) => `<button onclick="go('${k}')" class="w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm border ${on(k)?'bg-mint/10 text-mint border-mint/30 font-medium':'text-slate-400 border-transparent hover:bg-white/[0.04]'}">${navIcon(i)}${l}</button>`).join('');
+  $('#botnav').innerHTML = TABS.map(([k,l,i]) => `<button onclick="go('${k}')" class="flex flex-col items-center gap-1 py-2 text-[10px] ${on(k)?'text-mint font-medium':'text-slate-500'}">${navIcon(i,'h-5 w-5')}${l}</button>`).join('');
 }
 const go = t => { V.tab = t; render(); window.scrollTo(0,0); };
 const render = () => { nav(); $('#sidefoot').innerHTML = foot(); ({dash:viewDash, tx:viewTx, an:viewAn, pat:viewPat, goals:viewGoals})[V.tab](); };
 function modal(html){
   const m = $('#modal');
-  m.innerHTML = `<div class="bg-surf border border-slate-800 w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-5 max-h-[92vh] overflow-y-auto" style="padding-bottom:calc(1.25rem + env(safe-area-inset-bottom))">${html}</div>`;
+  m.innerHTML = `<div class="bg-surf/95 backdrop-blur-2xl border border-white/10 w-full md:max-w-md rounded-t-3xl md:rounded-3xl p-5 max-h-[92vh] overflow-y-auto" style="padding-bottom:calc(1.25rem + env(safe-area-inset-bottom))">${html}</div>`;
   m.classList.remove('hidden'); m.classList.add('flex');
   m.onclick = e => { if (e.target === m) closeModal(); };
 }
@@ -307,7 +326,7 @@ function rmTx(id){
 function viewDash(){
   const bt = f => S.accounts.filter(f).reduce((s,a) => s + balance(a), 0);
   const cash = bt(a => ['cash','savings'].includes(a.type)), card = bt(a => a.type==='card'), inv = bt(a => a.type==='investment');
-  const k = (l,v,s,hi) => `<div class="rounded-2xl p-4 border ${hi?'bg-mint/10 border-mint/50':'bg-surf border-slate-800'}">
+  const k = (l,v,s,hi) => `<div class="rounded-2xl p-4 border ${hi?'bg-mint/10 border-mint/50':'bg-surf border-white/10'}">
     <div class="text-xs ${hi?'text-mint':'text-slate-400'}">${l}</div>
     <div class="mt-1 text-xl font-semibold tabular ${hi?'text-mint':''}">${eur(v)}</div>
     <div class="text-[11px] text-slate-500">${s}</div></div>`;
@@ -346,7 +365,7 @@ function viewDash(){
     <div class="grid md:grid-cols-2 gap-3">${accs}</div>
     ${goalSummary}
     <h2 class="font-semibold mt-8 mb-3">Ultimi movimenti</h2>
-    <div class="bg-surf rounded-2xl border border-slate-800 divide-y divide-slate-800">${recent}</div>`;
+    <div class="bg-surf rounded-2xl border border-white/10 divide-y divide-white/10">${recent}</div>`;
 }
 
 /* Riconciliazione: crea una transazione di rettifica (tag "rettifica") pari alla differenza */
@@ -390,7 +409,7 @@ function viewTx(){
         <select class="${IN}" onchange="setTx('acc',this.value)"><option value="">Tutti i conti</option>
           ${S.accounts.map(a => `<option value="${a.id}" ${V.acc===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
       <input type="search" placeholder="Cerca descrizione o tag…" value="${esc(V.q)}" class="${IN}" oninput="setTx('q',this.value)"></div>
-    <div id="list" class="bg-surf rounded-2xl border border-slate-800 divide-y divide-slate-800"></div>
+    <div id="list" class="bg-surf rounded-2xl border border-white/10 divide-y divide-white/10"></div>
     <div id="sum" class="text-xs text-slate-500 mt-2 text-right"></div>
     `;
   renderList();
@@ -408,7 +427,7 @@ function renderList(){
 }
 function renderCategories(){
   const el = $('#category-list'); if (!el) return;
-  el.innerHTML = S.categories.map(c => `<div class="flex items-center gap-3 rounded-xl bg-bg border border-slate-800 px-3 py-2">
+  el.innerHTML = S.categories.map(c => `<div class="flex items-center gap-3 rounded-xl bg-bg border border-white/10 px-3 py-2">
     <span class="text-lg">${esc(c.icon||'🏷️')}</span><div class="min-w-0 flex-1"><div class="truncate text-sm">${esc(c.name)}</div><div class="text-xs text-slate-500">${c.type==='income'?'Entrata':'Uscita'}${c.monthly_budget!==null?` · Budget ${eur(c.monthly_budget)}`:''}</div></div>
     <button onclick="newItem('category','${c.id}')" class="text-xs text-mint hover:underline">Modifica</button><button onclick="removeItem('category','${c.id}')" class="text-xs text-slate-500 hover:text-red-400">Elimina</button></div>`).join('') || '<p class="text-sm text-slate-500">Nessuna categoria.</p>';
 }
@@ -461,8 +480,8 @@ function saveTx(e){
 function chooseEmoji(value){ $('#emoji-input').value=value; $('#emoji-button').textContent=value; $('#emoji-panel').classList.add('hidden'); }
 function openEmojiPicker(){ $('#emoji-panel').classList.remove('hidden'); }
 function emojiField(value){
-  return `<div class="space-y-2"><label class="block text-xs text-slate-400">Emoji</label><input id="emoji-input" name="icon" type="hidden" value="${esc(value||'')}"><button id="emoji-button" type="button" onclick="openEmojiPicker()" aria-label="Apri selettore emoji" class="h-12 w-12 rounded-xl border border-slate-800 bg-bg text-2xl hover:border-mint/60">${esc(value||'😊')}</button>
-    <div id="emoji-panel" class="hidden grid-cols-8 gap-1 rounded-xl border border-slate-800 bg-bg p-2">${EMOJIS.map(e=>`<button type="button" onclick="chooseEmoji('${e}')" class="rounded-lg p-2 text-xl hover:bg-slate-800" aria-label="${e}">${e}</button>`).join('')}</div></div>`;
+  return `<div class="space-y-2"><label class="block text-xs text-slate-400">Emoji</label><input id="emoji-input" name="icon" type="hidden" value="${esc(value||'')}"><button id="emoji-button" type="button" onclick="openEmojiPicker()" aria-label="Apri selettore emoji" class="h-12 w-12 rounded-xl border border-white/10 bg-bg text-2xl hover:border-mint/60">${esc(value||'😊')}</button>
+    <div id="emoji-panel" class="hidden grid-cols-8 gap-1 rounded-xl border border-white/10 bg-bg p-2">${EMOJIS.map(e=>`<button type="button" onclick="chooseEmoji('${e}')" class="rounded-lg p-2 text-xl hover:bg-slate-800" aria-label="${e}">${e}</button>`).join('')}</div></div>`;
 }
 function newItem(kind = 'category', editId = null){
   const isAcc = kind === 'account';
@@ -476,7 +495,7 @@ function newItem(kind = 'category', editId = null){
     : `<select name="type" class="${IN}"><option value="expense" ${item?.type==='expense'?'selected':''}>Uscita</option><option value="income" ${item?.type==='income'?'selected':''}>Entrata</option></select>
       ${emojiField(item?.icon||'')}
       <input name="monthly_budget" inputmode="decimal" value="${item?.monthly_budget!==null&&item?.monthly_budget!==undefined?esc(item.monthly_budget):''}" placeholder="Budget mensile (opzionale)" class="${IN}">`}
-    <div class="flex items-center justify-between text-sm text-slate-400"><span>Colore</span><input type="color" name="color" value="${esc(item?.color||(isAcc?'#29FFC2':'#818cf8'))}" class="h-9 w-14 rounded-lg border border-slate-800 bg-bg cursor-pointer"></div>
+    <div class="flex items-center justify-between text-sm text-slate-400"><span>Colore</span><input type="color" name="color" value="${esc(item?.color||(isAcc?'#a3e635':'#818cf8'))}" class="h-9 w-14 rounded-lg border border-white/10 bg-bg cursor-pointer"></div>
     <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">${item?'Salva modifiche':'Crea'}</button></div></form>`);
   $('#nf').onsubmit = e => {
     e.preventDefault();
@@ -573,7 +592,7 @@ function viewAn(){
   const noCatIncome = sum(t=>t.type==='income'&&!t.category_id), noCatExpense = sum(t=>t.type==='expense'&&!t.category_id)-sum(t=>t.type==='refund'&&!t.category_id);
   if (noCatIncome) incomeRows.push({icon:'🏷️',name:'Senza categoria',color:'#64748b',value:noCatIncome});
   if (noCatExpense) expenseRows.push({icon:'🏷️',name:'Senza categoria',color:'#64748b',value:noCatExpense});
-  const catList = rows => rows.map(c=>`<div class="flex items-center gap-2 py-2 border-b border-slate-800 last:border-0"><span class="h-2.5 w-2.5 rounded-full" style="background:${esc(c.color||'#64748b')}"></span><span class="text-sm flex-1 truncate">${esc(c.icon||'🏷️')} ${esc(c.name)}</span><span class="tabular text-sm font-medium">${eur(c.value)}</span></div>`).join('')||'<p class="text-sm text-slate-500">Nessuna categoria.</p>';
+  const catList = rows => rows.map(c=>`<div class="flex items-center gap-2 py-2 border-b border-white/10 last:border-0"><span class="h-2.5 w-2.5 rounded-full" style="background:${esc(c.color||'#64748b')}"></span><span class="text-sm flex-1 truncate">${esc(c.icon||'🏷️')} ${esc(c.name)}</span><span class="tabular text-sm font-medium">${eur(c.value)}</span></div>`).join('')||'<p class="text-sm text-slate-500">Nessuna categoria.</p>';
   const budgets = S.categories.filter(c=>c.type==='expense'&&c.monthly_budget!==null&&c.monthly_budget!==undefined);
   const budgetHtml = budgets.map(c=>{
     const spent=expenseRows.find(x=>x.id===c.id)?.value||0, budget=+c.monthly_budget||0, pct=budget>0?spent/budget*100:0;
@@ -613,17 +632,17 @@ function viewAn(){
       <div class="h-48"><canvas id="ch2"></canvas></div>
       <div class="overflow-x-auto mt-3"><table class="w-full text-xs"><thead><tr class="text-slate-500">
         <th class="text-left font-normal py-1 pl-2">Mese</th><th class="text-right font-normal">Entrate</th><th class="text-right font-normal">Uscite</th><th class="text-right font-normal">Risparmio</th><th class="text-right font-normal pr-2">Tasso</th></tr></thead>
-        <tbody class="divide-y divide-slate-800">${trRows}</tbody></table></div></div>`;
+        <tbody class="divide-y divide-white/10">${trRows}</tbody></table></div></div>`;
   if (chart) chart.destroy();
   Chart.defaults.color = '#94a3b8';
   chart = new Chart($('#ch'), {type:'doughnut',
-    data:{labels:['Necessità','Casuale'], datasets:[{data:ex>0?[nec,cas]:[1,0], backgroundColor:ex>0?['#29FFC2','#f59e0b']:['#1e293b','#1e293b'], borderColor:'#111827', borderWidth:3}]},
+    data:{labels:['Necessità','Casuale'], datasets:[{data:ex>0?[nec,cas]:[1,0], backgroundColor:ex>0?['#a3e635','#f59e0b']:['#1e293b','#1e293b'], borderColor:'#111827', borderWidth:3}]},
     options:{cutout:'70%', maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}});
   // Andamento: una sola linea (risparmio mensile), mese selezionato evidenziato; dettagli al tocco e nella tabella
   if (chart2) chart2.destroy();
   chart2 = new Chart($('#ch2'), {type:'line',
-    data:{labels:months.map(x => x.label), datasets:[{label:'Risparmio', data:tr.map(x => x.risp), borderColor:'#29FFC2', tension:.3, borderWidth:2,
-      pointRadius:c => c.dataIndex === last ? 6 : 3, pointBackgroundColor:c => c.dataIndex === last ? '#29FFC2' : '#111827', pointBorderColor:'#29FFC2', pointBorderWidth:2}]},
+    data:{labels:months.map(x => x.label), datasets:[{label:'Risparmio', data:tr.map(x => x.risp), borderColor:'#a3e635', tension:.3, borderWidth:2,
+      pointRadius:c => c.dataIndex === last ? 6 : 3, pointBackgroundColor:c => c.dataIndex === last ? '#a3e635' : '#111827', pointBorderColor:'#a3e635', pointBorderWidth:2}]},
     options:{maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
       plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => { const t = tr[c.dataIndex];
         return [`Risparmio: ${eur(t.risp)}`, `Entrate: ${eur(t.inc)}`, `Uscite: ${eur(t.spese)}`, `Tasso: ${rateOf(t)}`]; }}}},
@@ -634,7 +653,7 @@ function viewAn(){
 // Liquidità e capitale investito a fine mese, ricalcolati dai movimenti (nessun compito automatico sul server).
 // Gli investimenti sono contati al capitale versato: niente plusvalenze non realizzate.
 const P = {range:12, serie:'tot', open:false};
-const SER = {tot:{label:'Totale', color:'#29FFC2'}, liq:{label:'Liquidità', color:'#818cf8'}, inv:{label:'Investito', color:'#f59e0b'}};
+const SER = {tot:{label:'Totale', color:'#a3e635'}, liq:{label:'Liquidità', color:'#818cf8'}, inv:{label:'Investito', color:'#f59e0b'}};
 const LIQ_TYPES = ['cash','savings','card'];
 const eur0 = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
 const setPat = (k,v) => { P[k] = v; viewPat(); };
@@ -667,7 +686,7 @@ function viewPat(){
   const liq = bt(a => LIQ_TYPES.includes(a.type)), inv = bt(a => a.type === 'investment'), tot = liq + inv;
   const delta = pts.length > 1 ? pts[last].tot - pts[last-1].tot : null;
   const share = tot > 0 ? Math.max(0, Math.min(100, liq / tot * 100)) : 0;
-  const card = (l,v,sub,hi,cls='') => `<div class="rounded-2xl p-4 border ${hi?'bg-mint/10 border-mint/50':'bg-surf border-slate-800'} ${cls}">
+  const card = (l,v,sub,hi,cls='') => `<div class="rounded-2xl p-4 border ${hi?'bg-mint/10 border-mint/50':'bg-surf border-white/10'} ${cls}">
     <div class="text-xs ${hi?'text-mint':'text-slate-400'}">${l}</div><div class="mt-1 text-xl font-semibold tabular ${hi?'text-mint':''}">${eur(v)}</div>
     <div class="text-[11px] ${hi?'text-slate-400':'text-slate-500'}">${sub}</div></div>`;
   const chips = (opts, cur, fn, cls) => `<div class="grid ${cls} gap-1 rounded-xl bg-bg p-1">${opts.map(([k,l]) =>
@@ -688,7 +707,7 @@ function viewPat(){
       ${pts.length >= 2 ? '<div class="h-56"><canvas id="ch3"></canvas></div>' : '<p class="text-sm text-slate-400 py-6 text-center">Servono almeno due mesi di dati per vedere l\'andamento.</p>'}
       ${pts.length ? `<button class="${B2} w-full mt-3" onclick="setPat('open',${!P.open})">${P.open?'Nascondi valori':'Mostra valori'}</button>` : ''}
       ${P.open && pts.length ? `<div class="overflow-x-auto mt-3"><table class="w-full text-xs"><thead><tr class="text-slate-500"><th class="text-left font-normal py-1 pl-2">Mese</th><th class="text-right font-normal">Liquidità</th><th class="text-right font-normal">Investito</th><th class="text-right font-normal">Totale</th><th class="text-right font-normal pr-2">Variaz.</th></tr></thead>
-        <tbody class="divide-y divide-slate-800">${tRows}</tbody></table></div>` : ''}</div>`;
+        <tbody class="divide-y divide-white/10">${tRows}</tbody></table></div>` : ''}</div>`;
   if (chart3){ chart3.destroy(); chart3 = null; }
   if (pts.length >= 2){
     Chart.defaults.color = '#94a3b8';
@@ -705,7 +724,7 @@ function viewPat(){
 /* ===================== TAB 5 · OBIETTIVI ===================== */
 // Accantonamenti: i soldi restano sui conti veri, l'obiettivo è una quota «messa da parte».
 // Messo da parte = somma dei movimenti dell'obiettivo (+ versamenti, - prelievi/spese).
-const GOAL_PRESETS = [['Fondo di emergenza','🛟','#29FFC2'],['Vacanza','🏖️','#38bdf8'],['Auto','🚗','#818cf8'],['Casa','🏠','#f59e0b'],['Regalo','🎁','#f472b6']];
+const GOAL_PRESETS = [['Fondo di emergenza','🛟','#a3e635'],['Vacanza','🏖️','#38bdf8'],['Auto','🚗','#818cf8'],['Casa','🏠','#f59e0b'],['Regalo','🎁','#f472b6']];
 const GOAL_ICONS = ['🛟','🏖️','🚗','🏠','🎓','💍','🎁','💻','📱','✈️','🎄','🐶'];
 const ENTRY_LBL = {deposit:'Versamento', withdraw:'Prelievo', spend:'Spesa'};
 let goalCharts = [];
@@ -769,7 +788,7 @@ function viewGoals(){
   S.goals.forEach(g => {
     const saved = goalSaved(g), target = +g.target_amount, filled = Math.max(0, Math.min(saved, target));
     goalCharts.push(new Chart(document.getElementById('gc-' + g.id), {type:'doughnut', plugins:[centerText],
-      data:{labels:['Messo da parte','Mancante'], datasets:[{data:[filled, Math.max(0, target - filled)], backgroundColor:[g.color || '#29FFC2', '#1e293b'], borderColor:'#111827', borderWidth:2}]},
+      data:{labels:['Messo da parte','Mancante'], datasets:[{data:[filled, Math.max(0, target - filled)], backgroundColor:[g.color || '#a3e635', '#1e293b'], borderColor:'#111827', borderWidth:2}]},
       options:{cutout:'72%', maintainAspectRatio:false, plugins:{legend:{display:false}, centerText:{text:Math.round(target > 0 ? saved / target * 100 : 0) + '%'},
         tooltip:{callbacks:{label:c => `${c.label}: ${eur(c.parsed)}`}}}}}));
   });
@@ -791,7 +810,7 @@ function goalForm(editId = null, preset = null){
         <div class="flex items-center gap-2"><input name="icon" id="gicon" maxlength="8" value="${esc(v.icon || '🎯')}" class="${IN} !w-16 text-center text-2xl !px-1" aria-label="Icona">
           <div class="flex flex-wrap gap-1">${GOAL_ICONS.map(e => `<button type="button" onclick="$('#gicon').value='${e}'" class="h-8 w-8 rounded-lg text-lg hover:bg-slate-800">${e}</button>`).join('')}</div></div></div>
       <div class="flex items-center justify-between text-sm text-slate-400"><span>Colore</span>
-        <input type="color" name="color" value="${v.color || '#29FFC2'}" class="h-9 w-14 cursor-pointer rounded-lg border border-slate-800 bg-bg p-0.5"></div>
+        <input type="color" name="color" value="${v.color || '#a3e635'}" class="h-9 w-14 cursor-pointer rounded-lg border border-white/10 bg-bg p-0.5"></div>
       <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button>
         ${g ? `<button type="button" class="${B2} flex-1 !text-red-400" onclick="removeGoal('${g.id}')">Elimina</button>` : ''}<button class="${B1} flex-1">${g ? 'Salva' : 'Crea'}</button></div></form>`);
   goalHint();
@@ -878,7 +897,7 @@ function goalDetail(id){
   const entries = S.goal_entries.filter(e => e.goal_id === id).sort((a,b) => b.date.localeCompare(a.date) || (b.created_at||'').localeCompare(a.created_at||''));
   modal(`<div class="flex items-center gap-2 mb-1"><span class="text-xl">${esc(g.icon || '🎯')}</span><h3 class="font-semibold truncate">${esc(g.name)}</h3></div>
     <p class="text-sm text-slate-400 mb-3">${eur(saved)} messi da parte su ${eur(+g.target_amount)}</p>
-    <div class="rounded-xl border border-slate-800 divide-y divide-slate-800 max-h-64 overflow-y-auto">${entries.map(e => `<div class="flex items-center gap-2 px-3 py-2 text-sm">
+    <div class="rounded-xl border border-white/10 divide-y divide-white/10 max-h-64 overflow-y-auto">${entries.map(e => `<div class="flex items-center gap-2 px-3 py-2 text-sm">
       <div class="flex-1 min-w-0"><div>${ENTRY_LBL[e.kind] || 'Movimento'}${e.note ? ` <span class="text-xs text-slate-500">· ${esc(e.note)}</span>` : ''}</div><div class="text-xs text-slate-500">${dmy(e.date)}</div></div>
       <span class="tabular font-medium ${+e.amount < 0 ? 'text-slate-300' : 'text-mint'}">${+e.amount < 0 ? '−' : '+'}${eur(Math.abs(+e.amount))}</span>
       <button class="text-xs text-slate-500 hover:text-red-400" onclick="delEntry('${e.id}')">Elimina</button></div>`).join('') || '<p class="p-4 text-sm text-slate-500 text-center">Nessun movimento.</p>'}</div>
