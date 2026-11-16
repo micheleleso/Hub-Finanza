@@ -47,7 +47,7 @@
 <div class="md:pl-60"><main id="view" class="max-w-4xl mx-auto px-4 pt-6"><p class="text-sm text-slate-500">Caricamento… (v2.4)</p></main></div>
 
 <!-- Barra di navigazione mobile -->
-<nav id="botnav" class="md:hidden fixed bottom-0 inset-x-0 grid grid-cols-4 border-t border-slate-800 bg-surf"></nav>
+<nav id="botnav" class="md:hidden fixed bottom-0 inset-x-0 grid grid-cols-5 border-t border-slate-800 bg-surf"></nav>
 
 <!-- Tasto flottante + -->
 <button id="fab" onclick="txForm('expense')" aria-label="Nuova transazione"
@@ -66,7 +66,7 @@ const SUPABASE_URL = 'https://ddfeeqybmxladzunkpbg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_F3q51ck3EEkWZ8dfPHiyWg_HkwpiRBW';
 const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 let sb;
-const APP_VERSION = '3.0';
+const APP_VERSION = '3.1';
 // Qualsiasi errore di JavaScript viene mostrato in una barra rossa (niente più pagina muta)
 function showFatal(m){
   let b = document.getElementById('fatal');
@@ -78,13 +78,13 @@ window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reas
 const LS_KEY = 'hub_finanza_demo';
 const now = new Date();
 const pad = n => String(n).padStart(2,'0');
-let S = {accounts:[], categories:[], transactions:[], budget_settings:[]}, chart, chart2, chart3, budgetReady = true;
+let S = {accounts:[], categories:[], transactions:[], budget_settings:[], goals:[], goal_entries:[]}, chart, chart2, chart3, budgetReady = true, goalsReady = true;
 let EDIT_TX_ID = null, currentEmail = '';
 // Filtri Transazioni (mese '' = tutti i mesi) e Analisi (sempre un mese preciso)
 const V = {tab:'dash', m:pad(now.getMonth()+1), y:String(now.getFullYear()), type:'', acc:'', q:''};
 const A = {m:pad(now.getMonth()+1), y:String(now.getFullYear())};
 const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
-const TABS = [['dash','Dashboard','🏠'],['tx','Transazioni','↔️'],['an','Analisi','📊'],['pat','Patrimonio','📈']];
+const TABS = [['dash','Dashboard','🏠'],['tx','Transazioni','↔️'],['an','Analisi','📊'],['pat','Patrimonio','📈'],['goals','Obiettivi','🎯']];
 const TYPE_LBL = {income:'Entrata', expense:'Uscita', transfer:'Trasferimento', refund:'Rimborso'};
 const ACC_LBL = {cash:'Contanti', card:'Carta', savings:'Risparmio', investment:'Investimenti'};
 const CARD = 'bg-surf rounded-2xl border border-slate-800 p-4';
@@ -157,7 +157,7 @@ async function load(){
   if (DEMO){
     try { const raw = localStorage.getItem(LS_KEY); S = raw ? JSON.parse(raw) : seed(); }
     catch { S = seed(); }
-    S.budget_settings = S.budget_settings || [];
+    S.budget_settings = S.budget_settings || []; S.goals = S.goals || []; S.goal_entries = S.goal_entries || [];
     return save();
   }
   const r = await Promise.all(['accounts','categories','transactions'].map(n => sb.from(n).select('*').order('created_at')));
@@ -165,7 +165,10 @@ async function load(){
   if (bad) return toast('Errore database: ' + bad.error.message);
   const bs = await sb.from('budget_settings').select('*').limit(1);   // se la tabella non esiste ancora: budget non salvabile, ma l'app funziona
   budgetReady = !bs.error;
-  S = {accounts:r[0].data, categories:r[1].data, transactions:r[2].data, budget_settings:bs.error ? [] : bs.data};
+  const gx = await Promise.all(['goals','goal_entries'].map(n => sb.from(n).select('*').order('created_at')));   // tabelle facoltative finché non si esegue migration_goals.sql
+  goalsReady = !gx.some(x => x.error);
+  S = {accounts:r[0].data, categories:r[1].data, transactions:r[2].data, budget_settings:bs.error ? [] : bs.data,
+       goals:goalsReady ? gx[0].data : [], goal_entries:goalsReady ? gx[1].data : []};
   if (!S.categories.length){                       // primo accesso: categorie di default
     const {data} = await sb.from('categories').insert(DEFAULT_CATS).select();
     S.categories = data || [];
@@ -251,7 +254,7 @@ function nav(){
   $('#botnav').innerHTML = TABS.map(([k,l,i]) => `<button onclick="go('${k}')" class="flex flex-col items-center py-2 text-[11px] ${on(k)?'text-mint font-medium':'text-slate-500'}"><span class="text-lg">${i}</span>${l}</button>`).join('');
 }
 const go = t => { V.tab = t; render(); window.scrollTo(0,0); };
-const render = () => { nav(); $('#sidefoot').innerHTML = foot(); ({dash:viewDash, tx:viewTx, an:viewAn, pat:viewPat})[V.tab](); };
+const render = () => { nav(); $('#sidefoot').innerHTML = foot(); ({dash:viewDash, tx:viewTx, an:viewAn, pat:viewPat, goals:viewGoals})[V.tab](); };
 function modal(html){
   const m = $('#modal');
   m.innerHTML = `<div class="bg-surf border border-slate-800 w-full md:max-w-md rounded-t-2xl md:rounded-2xl p-5 max-h-[92vh] overflow-y-auto" style="padding-bottom:calc(1.25rem + env(safe-area-inset-bottom))">${html}</div>`;
@@ -681,6 +684,191 @@ function viewPat(){
   }
 }
 
+/* ===================== TAB 5 · OBIETTIVI ===================== */
+// Accantonamenti: i soldi restano sui conti veri, l'obiettivo è una quota «messa da parte».
+// Messo da parte = somma dei movimenti dell'obiettivo (+ versamenti, - prelievi/spese).
+const GOAL_PRESETS = [['Fondo di emergenza','🛟','#29FFC2'],['Vacanza','🏖️','#38bdf8'],['Auto','🚗','#818cf8'],['Casa','🏠','#f59e0b'],['Regalo','🎁','#f472b6']];
+const GOAL_ICONS = ['🛟','🏖️','🚗','🏠','🎓','💍','🎁','💻','📱','✈️','🎄','🐶'];
+const ENTRY_LBL = {deposit:'Versamento', withdraw:'Prelievo', spend:'Spesa'};
+let goalCharts = [];
+const goal = id => S.goals.find(g => g.id === id);
+const goalSaved = g => S.goal_entries.filter(e => e.goal_id === g.id).reduce((s,e) => s + +e.amount, 0);
+const liquidity = () => S.accounts.filter(a => LIQ_TYPES.includes(a.type)).reduce((s,a) => s + balance(a), 0);
+const allocated = () => S.goals.reduce((s,g) => s + goalSaved(g), 0);
+const dmy = d => String(d).split('-').reverse().join('/');
+// media mensile delle spese di Necessità degli ultimi 3 mesi (per suggerire la dimensione del fondo di emergenza)
+function avgNeeds(){
+  const now = new Date(), keys = [0,1,2].map(i => { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; });
+  const tot = S.transactions.filter(t => t.type === 'expense' && t.is_necessary && !(t.tags||[]).includes('rettifica') && keys.some(k => t.date.startsWith(k))).reduce((s,t) => s + +t.amount, 0);
+  return tot / 3;
+}
+const centerText = {id:'centerText', afterDraw(ch){
+  const t = ch.options.plugins && ch.options.plugins.centerText && ch.options.plugins.centerText.text; if (!t) return;
+  const {ctx, chartArea:a} = ch; ctx.save(); ctx.fillStyle = '#e2e8f0'; ctx.font = '600 15px system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, (a.left + a.right) / 2, (a.top + a.bottom) / 2); ctx.restore(); }};
+
+function goalCard(g){
+  const saved = goalSaved(g), target = +g.target_amount, pct = target > 0 ? saved / target * 100 : 0, done = saved >= target - 0.005, rest = Math.max(0, target - saved);
+  let dl = '';
+  if (g.target_date && !done){
+    const days = Math.ceil((new Date(g.target_date + 'T00:00') - new Date(today() + 'T00:00')) / 864e5);
+    dl = days < 0 ? `<div class="text-[11px] text-red-400">Scaduto il ${dmy(g.target_date)}</div>`
+                  : `<div class="text-[11px] text-slate-400">Entro il ${dmy(g.target_date)}: ${eur(rest / Math.max(1, Math.ceil(days / 30.44)))} al mese</div>`;
+  }
+  return `<div class="${CARD}">
+    <div class="flex items-center gap-4">
+      <div class="relative h-28 w-28 shrink-0"><canvas id="gc-${g.id}"></canvas></div>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2"><span class="text-xl">${esc(g.icon || '🎯')}</span><h3 class="font-semibold truncate">${esc(g.name)}</h3></div>
+        <div class="mt-1 text-xl font-semibold tabular">${eur(saved)}</div>
+        <div class="text-xs text-slate-500">di ${eur(target)}</div>
+        <div class="text-xs mt-1 ${done?'text-mint':'text-slate-400'}">${done ? (saved > target + 0.005 ? 'Raggiunto, ' + eur(saved - target) + ' oltre' : 'Obiettivo raggiunto 🎉') : 'Mancano ' + eur(rest)}</div>
+        ${dl}</div></div>
+    <div class="grid grid-cols-3 gap-2 mt-3">
+      <button class="${B1} !py-2 !text-xs" onclick="moneyForm('${g.id}','deposit')">Aggiungi</button>
+      <button class="${B2}" onclick="moneyForm('${g.id}','withdraw')">Preleva</button>
+      <button class="${B2}" onclick="spendForm('${g.id}')">Usa fondi</button></div>
+    <button class="mt-2 w-full text-xs text-slate-500 hover:text-mint" onclick="goalDetail('${g.id}')">Storico e modifica</button></div>`;
+}
+function viewGoals(){
+  goalCharts.forEach(c => c.destroy()); goalCharts = [];
+  const head = `<div class="flex items-center justify-between mb-4"><h1 class="text-xl font-semibold">Obiettivi</h1><button class="${B1} !py-2" onclick="goalForm()">+ Nuovo</button></div>`;
+  if (!goalsReady){
+    $('#view').innerHTML = head + `<div class="${CARD} text-sm text-slate-300 space-y-2"><p>Per usare gli obiettivi serve creare le tabelle su Supabase, una volta sola.</p>
+      <p class="text-slate-400">Apri l'SQL Editor di Supabase, premi «New query», incolla il contenuto del file <b class="text-slate-200">migration_goals.sql</b>, premi Run e poi ricarica questa pagina.</p></div>`;
+    return;
+  }
+  const liq = liquidity(), alloc = allocated(), free = liq - alloc;
+  const k = (l,v,cls='') => `<div class="${CARD} !p-3"><div class="text-[11px] text-slate-400">${l}</div><div class="mt-0.5 text-base font-semibold tabular ${cls}">${eur(v)}</div></div>`;
+  const warn = alloc > liq + 0.005 ? `<div class="mt-3 rounded-xl border border-red-400/40 bg-red-400/10 p-3 text-sm text-red-300">Hai messo da parte ${eur(alloc)} negli obiettivi, ma la liquidità è ${eur(liq)}: ${eur(alloc - liq)} non sono coperti.
+    Se hai speso soldi accantonati, usa «Preleva» sull'obiettivo per riallinearlo.</div>` : '';
+  const empty = `<div class="${CARD} text-center py-8"><div class="text-3xl mb-2">🎯</div><p class="font-medium">Nessun obiettivo ancora</p>
+    <p class="text-sm text-slate-400 mt-1 mb-4">Metti da parte soldi per qualcosa di preciso: un fondo di emergenza, una vacanza, un acquisto.</p>
+    <div class="flex flex-wrap justify-center gap-2">${GOAL_PRESETS.map(p => `<button class="${B2}" onclick="goalForm(null,'${p[0]}')">${p[1]} ${p[0]}</button>`).join('')}</div></div>`;
+  $('#view').innerHTML = head + (S.goals.length ? `<div class="grid grid-cols-3 gap-3">${k('Messo da parte', alloc)}${k('Liquidità', liq)}${k('Libera', free, free < 0 ? 'text-red-400' : 'text-mint')}</div>${warn}
+    <div class="grid md:grid-cols-2 gap-3 mt-3">${S.goals.map(goalCard).join('')}</div>` : empty);
+  Chart.defaults.color = '#94a3b8';
+  S.goals.forEach(g => {
+    const saved = goalSaved(g), target = +g.target_amount, filled = Math.max(0, Math.min(saved, target));
+    goalCharts.push(new Chart(document.getElementById('gc-' + g.id), {type:'doughnut', plugins:[centerText],
+      data:{labels:['Messo da parte','Mancante'], datasets:[{data:[filled, Math.max(0, target - filled)], backgroundColor:[g.color || '#29FFC2', '#1e293b'], borderColor:'#111827', borderWidth:2}]},
+      options:{cutout:'72%', maintainAspectRatio:false, plugins:{legend:{display:false}, centerText:{text:Math.round(target > 0 ? saved / target * 100 : 0) + '%'},
+        tooltip:{callbacks:{label:c => `${c.label}: ${eur(c.parsed)}`}}}}}));
+  });
+}
+
+/* Nuovo / modifica obiettivo */
+function goalForm(editId = null, preset = null){
+  const g = editId ? goal(editId) : null, p = preset ? GOAL_PRESETS.find(x => x[0] === preset) : null;
+  const v = g || (p ? {name:p[0], icon:p[1], color:p[2]} : {});
+  modal(`<h3 class="font-semibold mb-3">${g ? 'Modifica obiettivo' : 'Nuovo obiettivo'}</h3>
+    ${g ? '' : `<div class="flex flex-wrap gap-2 mb-3">${GOAL_PRESETS.map(x => `<button type="button" class="${B2}" onclick="goalForm(null,'${x[0]}')">${x[1]} ${x[0]}</button>`).join('')}</div>`}
+    <form id="gf" class="space-y-3">
+      <input name="name" placeholder="Nome (es. Vacanza in Giappone)" required value="${esc(v.name || '')}" oninput="goalHint()" class="${IN}">
+      <div><label class="text-xs text-slate-400">Importo da raggiungere (€)</label>
+        <input name="target" inputmode="decimal" required placeholder="0,00" value="${g ? String(g.target_amount).replace('.', ',') : ''}" class="${IN}"><p id="ghint" class="text-xs text-slate-500 mt-1"></p></div>
+      ${g ? '' : `<div><label class="text-xs text-slate-400">Già messi da parte (€, facoltativo)</label><input name="initial" inputmode="decimal" placeholder="0,00" class="${IN}"></div>`}
+      <div><label class="text-xs text-slate-400">Scadenza (facoltativa)</label><input type="date" name="date" value="${g?.target_date || ''}" class="${IN}"></div>
+      <div><label class="text-xs text-slate-400">Icona</label>
+        <div class="flex items-center gap-2"><input name="icon" id="gicon" maxlength="8" value="${esc(v.icon || '🎯')}" class="${IN} !w-16 text-center text-2xl !px-1" aria-label="Icona">
+          <div class="flex flex-wrap gap-1">${GOAL_ICONS.map(e => `<button type="button" onclick="$('#gicon').value='${e}'" class="h-8 w-8 rounded-lg text-lg hover:bg-slate-800">${e}</button>`).join('')}</div></div></div>
+      <div class="flex items-center justify-between text-sm text-slate-400"><span>Colore</span>
+        <input type="color" name="color" value="${v.color || '#29FFC2'}" class="h-9 w-14 cursor-pointer rounded-lg border border-slate-800 bg-bg p-0.5"></div>
+      <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button>
+        ${g ? `<button type="button" class="${B2} flex-1 !text-red-400" onclick="removeGoal('${g.id}')">Elimina</button>` : ''}<button class="${B1} flex-1">${g ? 'Salva' : 'Crea'}</button></div></form>`);
+  goalHint();
+  $('#gf').onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target), num = x => { const n = parseFloat(String(x || '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+    const target = num(f.get('target')); if (!(target > 0)) return toast('Importo non valido');
+    const row = {name:f.get('name').trim(), target_amount:target, icon:(f.get('icon') || '').trim() || '🎯', color:f.get('color'), target_date:f.get('date') || null};
+    if (g) upd('goals', g.id, row);
+    else {
+      ins('goals', row);
+      const init = num(f.get('initial'));
+      if (init > 0) ins('goal_entries', {goal_id:row.id, amount:init, kind:'deposit', date:today(), note:'Importo iniziale', transaction_id:null});
+    }
+    closeModal(); render();
+  };
+}
+// Suggerimento per il fondo di emergenza: 3-6 mesi di spese di Necessità
+function goalHint(){
+  const el = $('#ghint'), f = $('#gf'); if (!el || !f) return;
+  const a = avgNeeds();
+  el.textContent = /emergenza/i.test(f.elements.name.value) && a > 0 ? `Un fondo di emergenza copre di solito 3-6 mesi di spese di Necessità: per te circa ${eur0(a * 3)} - ${eur0(a * 6)} (media degli ultimi 3 mesi).` : '';
+}
+function removeGoal(id){
+  const g = goal(id); if (!g || !confirm(`Eliminare l'obiettivo «${g.name}» e il suo storico? I soldi restano sui tuoi conti.`)) return;
+  S.goal_entries = S.goal_entries.filter(e => e.goal_id !== id);
+  del('goals', id); closeModal();
+}
+
+/* Aggiungi / Preleva */
+function moneyForm(id, kind){
+  const g = goal(id), saved = goalSaved(g), free = liquidity() - allocated(), dep = kind === 'deposit';
+  modal(`<h3 class="font-semibold mb-1">${dep ? 'Aggiungi a' : 'Preleva da'} «${esc(g.name)}»</h3>
+    <p class="text-sm text-slate-400 mb-3">${dep ? `Liquidità non ancora assegnata: <b class="text-slate-200">${eur(free)}</b>. I soldi restano sui tuoi conti.` : `Disponibile nell'obiettivo: <b class="text-slate-200">${eur(saved)}</b>. Il saldo dei conti non cambia.`}</p>
+    <form id="mf" class="space-y-3"><div class="grid grid-cols-2 gap-3">
+      <div><label class="text-xs text-slate-400">Importo (€)</label><input name="amount" inputmode="decimal" required placeholder="0,00" class="${IN}"></div>
+      <div><label class="text-xs text-slate-400">Data</label><input type="date" name="date" value="${today()}" required class="${IN}"></div></div>
+      <input name="note" placeholder="Nota (facoltativa)" class="${IN}">
+      <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">${dep ? 'Aggiungi' : 'Preleva'}</button></div></form>`);
+  $('#mf').onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target), amt = parseFloat(String(f.get('amount')).replace(',', '.'));
+    if (!(amt > 0)) return toast('Importo non valido');
+    if (!dep && amt > saved + 0.005) return toast('Non puoi prelevare più di quanto hai messo da parte');
+    if (dep && amt > free + 0.005 && !confirm(`Stai mettendo da parte più della liquidità libera (${eur(free)}). Continuare?`)) return;
+    ins('goal_entries', {goal_id:id, amount:dep ? amt : -amt, kind:kind, date:f.get('date'), note:f.get('note') || null, transaction_id:null});
+    closeModal(); render();
+  };
+}
+
+/* Usa fondi: registra la spesa vera in Transazioni e scala la stessa cifra dall'obiettivo */
+function spendForm(id){
+  const g = goal(id), saved = goalSaved(g), accs = S.accounts.filter(a => LIQ_TYPES.includes(a.type)), cats = S.categories.filter(c => c.type === 'expense');
+  if (!accs.length || !cats.length) return toast('Servono almeno un conto e una categoria di uscita');
+  const needs = /emergenza/i.test(g.name);
+  const best = accs.reduce((a,b) => balance(b) > balance(a) ? b : a);        // conto preselezionato: quello con più soldi
+  modal(`<h3 class="font-semibold mb-1">Usa fondi di «${esc(g.name)}»</h3>
+    <p class="text-sm text-slate-400 mb-3">Registra la spesa vera in Transazioni e scala la stessa cifra dall'obiettivo (disponibile: <b class="text-slate-200">${eur(saved)}</b>).</p>
+    <form id="sf" class="space-y-3"><div class="grid grid-cols-2 gap-3">
+      <div><label class="text-xs text-slate-400">Importo speso (€)</label><input name="amount" inputmode="decimal" required value="${String(saved.toFixed(2)).replace('.', ',')}" class="${IN}"></div>
+      <div><label class="text-xs text-slate-400">Data</label><input type="date" name="date" value="${today()}" required class="${IN}"></div></div>
+      <div><label class="text-xs text-slate-400">Pagato dal conto</label><select name="account_id" class="${IN}">${accs.map(a => `<option value="${a.id}" ${a.id===best.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
+      <div><label class="text-xs text-slate-400">Categoria</label><select name="category_id" required class="${IN}">${cats.map(c => `<option value="${c.id}">${esc(c.icon || '')} ${esc(c.name)}</option>`).join('')}</select></div>
+      <div><label class="text-xs text-slate-400">Tipo di spesa</label><select name="is_necessary" class="${IN}"><option value="1" ${needs?'selected':''}>Necessità</option><option value="0" ${needs?'':'selected'}>Casuale</option></select></div>
+      <input name="description" value="${esc(g.name)}" placeholder="Descrizione" class="${IN}">
+      <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">Registra spesa</button></div></form>`);
+  $('#sf').onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target), amt = parseFloat(String(f.get('amount')).replace(',', '.'));
+    if (!(amt > 0)) return toast('Importo non valido');
+    const tx = {type:'expense', account_id:f.get('account_id'), to_account_id:null, category_id:f.get('category_id'), amount:amt, is_necessary:f.get('is_necessary') === '1',
+      date:f.get('date'), description:f.get('description') || g.name, notes:null, tags:['obiettivo']};
+    ins('transactions', tx);
+    const scaled = Math.min(amt, saved);                    // se spendi più di quanto accantonato, scala solo quanto c'era
+    if (scaled > 0) ins('goal_entries', {goal_id:id, amount:-scaled, kind:'spend', date:tx.date, note:tx.description, transaction_id:tx.id});
+    closeModal(); render();
+    if (amt > saved + 0.005) toast('Spesa registrata: dall\'obiettivo ho scalato ' + eur(scaled));
+  };
+}
+
+/* Storico e modifica */
+function goalDetail(id){
+  const g = goal(id), saved = goalSaved(g);
+  const entries = S.goal_entries.filter(e => e.goal_id === id).sort((a,b) => b.date.localeCompare(a.date) || (b.created_at||'').localeCompare(a.created_at||''));
+  modal(`<div class="flex items-center gap-2 mb-1"><span class="text-xl">${esc(g.icon || '🎯')}</span><h3 class="font-semibold truncate">${esc(g.name)}</h3></div>
+    <p class="text-sm text-slate-400 mb-3">${eur(saved)} messi da parte su ${eur(+g.target_amount)}</p>
+    <div class="rounded-xl border border-slate-800 divide-y divide-slate-800 max-h-64 overflow-y-auto">${entries.map(e => `<div class="flex items-center gap-2 px-3 py-2 text-sm">
+      <div class="flex-1 min-w-0"><div>${ENTRY_LBL[e.kind] || 'Movimento'}${e.note ? ` <span class="text-xs text-slate-500">· ${esc(e.note)}</span>` : ''}</div><div class="text-xs text-slate-500">${dmy(e.date)}</div></div>
+      <span class="tabular font-medium ${+e.amount < 0 ? 'text-slate-300' : 'text-mint'}">${+e.amount < 0 ? '−' : '+'}${eur(Math.abs(+e.amount))}</span>
+      <button class="text-xs text-slate-500 hover:text-red-400" onclick="delEntry('${e.id}')">Elimina</button></div>`).join('') || '<p class="p-4 text-sm text-slate-500 text-center">Nessun movimento.</p>'}</div>
+    <p class="text-xs text-slate-500 mt-2">Eliminare un movimento non modifica le transazioni dei tuoi conti.</p>
+    <div class="flex gap-2 mt-4"><button class="${B2} flex-1" onclick="closeModal()">Chiudi</button><button class="${B1} flex-1" onclick="goalForm('${id}')">Modifica obiettivo</button></div>`);
+}
+function delEntry(id){ if (confirm('Eliminare questo movimento dall\'obiettivo?')){ del('goal_entries', id); closeModal(); } }
+
 /* ===================== AVVIO ===================== */
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 
@@ -739,7 +927,7 @@ async function boot(){
   if (!DEMO){
     if (!sb){
       sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT'){ currentEmail=''; S = {accounts:[],categories:[],transactions:[],budget_settings:[]}; showAuth(); } });
+      sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT'){ currentEmail=''; S = {accounts:[],categories:[],transactions:[],budget_settings:[],goals:[],goal_entries:[]}; showAuth(); } });
       // Al ritorno sull'app ricarica i dati (per vedere le modifiche fatte da un altro dispositivo)
       const sync = () => {
         const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
