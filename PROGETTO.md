@@ -4,7 +4,7 @@
 > leggi questo file prima di toccare il codice e **aggiornalo ogni volta che cambi qualcosa**
 > (vedi «Registro modifiche» in fondo). Così chi arriva dopo sa cosa è stato fatto e perché.
 
-Ultimo aggiornamento di questo file: 2026-11-16 (Claude: versione 3.1, scheda Obiettivi).
+Ultimo aggiornamento di questo file: 2026-11-16 (ChatGPT/Codex: versione 3.3, rinnovamento grafico).
 
 ---
 
@@ -18,13 +18,14 @@ Interfaccia e messaggi sono **in italiano**.
 - Un solo file applicativo: `index.html` con HTML5, Tailwind CSS via CDN e **JavaScript vanilla (ES6+)**. Niente React/Node/build step.
 - Database e autenticazione: **Supabase** (client ufficiale via CDN). Dati unici condivisi tra tutti i dispositivi dell'utente.
 - Se `SUPABASE_URL` o `SUPABASE_ANON_KEY` sono vuote, l'app parte in **modalità demo** con dati di esempio in `localStorage`.
-- Tema **Dark Mode fintech**: sfondo `#0b0f19`, superfici `#111827`, bordi `slate-800`, accento menta `#29FFC2`.
+- Tema **Dark Mode fintech**: sfondo nero `#000`, pannelli antracite semitrasparenti con bordi morbidi, bagliori lime sullo sfondo, accento `#a3e635`.
 - Mobile-first: barra di navigazione in basso su mobile, sidebar a sinistra su desktop, tasto flottante `+` sempre sopra la barra.
 
-## 3. Librerie (tutte via CDN, versioni fissate)
+## 3. Librerie e risorse esterne
 | Libreria | Versione | Note |
 |---|---|---|
-| Tailwind CSS (Play CDN) | `cdn.tailwindcss.com` | colori custom in `tailwind.config`: `bg`, `surf`, `mint` |
+| Tailwind CSS (Play CDN) | `cdn.tailwindcss.com` | colori custom in `tailwind.config`: nero `bg`, antracite `surf`, lime `mint` |
+| Google Fonts (Comfortaa) | API Google Fonts | pesi 400, 500, 600, 700; caricamento CSS esterno |
 | Chart.js | 4.4.1 (jsdelivr) | ciambella Necessità/Casuale nell'Analisi |
 | @supabase/supabase-js | 2.109.0 (jsdelivr, UMD) | **serve una versione recente**: la 2.45.4 usata all'inizio è troppo vecchia per le chiavi `sb_publishable_…` |
 
@@ -177,7 +178,7 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 - `importLocal()`: importa nel database i dati salvati in localStorage (con nuovi id).
 
 **Interfaccia**
-- Schede: **Dashboard**, **Transazioni**, **Analisi**, **Patrimonio & Calendario** (segnaposto). Email e stato Supabase sono nel piè di pagina della sidebar desktop.
+- Schede: **Dashboard**, **Transazioni**, **Analisi**, **Patrimonio** e **Obiettivi**. La sidebar desktop mostra il logo euro lime e il nome Hub Finanza.
 - `render()` ridisegna la scheda corrente; `modal()` / `closeModal()` per i pannelli; `dateSel()` crea i due menu **Mese + Anno** (mese in italiano, «Tutti i mesi» solo in Transazioni).
 - Tutto il testo inserito dall'utente passa da `esc()` (protezione dall'HTML iniettato).
 - Errori JavaScript visibili in una barra rossa (`showFatal`); sulla schermata di accesso una riga verifica il collegamento a Supabase e mostra la versione (`APP_VERSION`).
@@ -186,6 +187,8 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 **Transazioni**: pulsante flottante  (Entrata, Uscita, Trasferimento, Rimborso), lista filtrabile e modificabile/eliminabile. Il menu «Gestisci categorie» è sopra la lista; da lì si vedono, creano, modificano ed eliminano categorie. Conti e categorie sono indipendenti.
 **Analisi**: KPI del mese/anno selezionati, entrate e uscite nette per categoria, confronto dei budget mensili e ciambella Necessità/Casuale. Il tasso di risparmio è mensile; non c'è un grafico di andamento annuale.
 **Moduli**: modifica/eliminazione di conti, categorie e movimenti; non si eliminano conti o categorie ancora usati. Le uscite hanno menu «Necessità» / «Casuale». Selezione emoji con pulsante quadrato e pannello interno; il colore si seleziona dal quadratino.
+
+**Stile (v3.3)**: font Comfortaa da Google Fonts; sfondo nero con bagliori radiali lime, pannelli traslucidi e bordi arrotondati. Le cinque schede usano icone SVG inline per persona, portafoglio, torta, grafico in crescita e appunti; il logo euro lime SVG è nella sidebar desktop. L'icona del manifest PWA non è stata modificata.
 
 ## 8. Pubblicazione
 - Ospitata su **GitHub Pages** (repo pubblico, ramo `main`, cartella radice). Indirizzo del tipo `https://UTENTE.github.io/hub-finanza/`.
@@ -214,6 +217,7 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 | 2.8 | Grafico andamento reso più leggibile (su richiesta dell'utente, «opzione C»): **una sola linea** (risparmio mensile) con il mese selezionato evidenziato, legenda tolta, tooltip con risparmio/entrate/uscite/tasso, e **tabella compatta** sotto (mese, entrate, uscite, risparmio, tasso). Sempre **6 mesi** terminanti nel mese selezionato, anche se vuoti. Test automatico in modalità demo ok; non provata con Supabase reale |
 | 2.9 | **Scheda Patrimonio** (al posto del segnaposto «Patrimonio & Calendario»; icona 📈): card Patrimonio/Liquidità/Investito, barra di composizione, grafico a linea a fine mese con scelta della serie (Totale/Liquidità/Investito) e dell'intervallo (6/12/24 mesi), etichette solo su primo/ultimo/minimo/massimo, tabella «Mostra valori» chiusa di default. Storico **ricalcolato dai movimenti** (`balanceAt`, `wealthSeries`), parte dal primo mese con dati. **Investimenti = solo capitale versato**: le rettifiche sui conti `investment` sono ignorate nei saldi e «Riconcilia saldo» è nascosto/bloccato su quei conti. Test automatico in modalità demo con dati su più mesi ok; non provata con Supabase reale |
 | 3.0 | **Budget mensile personalizzabile** (stile 50/30/20) nell'Analisi: card «Budget del mese» dopo i KPI con tre righe (Necessità, Casuale, Risparmio), obiettivo % e valore reale, barre, «Ti restano / Superato di / Mancano»; modulo «Modifica» con preset (50/30/20, 60/20/20, 70/20/10, 80/10/10), tre percentuali libere che devono fare 100 e **entrata mensile prevista** facoltativa (se vuota si usano le entrate reali del mese). Salvataggio nella nuova tabella `budget_settings` (una riga per utente, RLS; script `migration_budget.sql`). Se la tabella non esiste l'app funziona lo stesso ma il budget non si salva. La card per categoria è stata rinominata «Budget per categoria». Test automatico in modalità demo ok; non provata con Supabase reale |
+| 3.3 | Restyling grafico: font Comfortaa, nero puro con bagliori lime, pannelli traslucidi e bordi arrotondati; icone SVG inline per le cinque schede e logo euro lime accanto al nome nella sidebar desktop. Accento aggiornato a `#a3e635`. | Il font viene caricato da Google Fonts; icona del manifest PWA invariata |
 | 3.2 | Dashboard: riepilogo rapido degli obiettivi con totale accantonato, liquidità libera, barre di avanzamento dei primi 3 obiettivi e collegamento alla scheda. Se le tabelle opzionali non sono configurate, mostra un collegamento alla configurazione. | Nessuna modifica al database; non provata con Supabase reale |
 | 3.1 | **Scheda Obiettivi** (5ª scheda, icona 🎯; la barra mobile passa a 5 colonne): obiettivi decisi dall'utente (nome, importo, icona, colore, scadenza facoltativa, importo già messo da parte) con **grafico a torta** che si riempie e si svuota e % al centro. Modello **accantonamento**: i soldi restano sui conti veri, messo da parte = somma dei movimenti dell'obiettivo (+ versamenti, − prelievi/spese). Azioni: **Aggiungi**, **Preleva**, **Usa fondi** (registra una spesa vera in Transazioni con tag `obiettivo` e scala dall'obiettivo la stessa cifra, al massimo quanto accantonato), storico con eliminazione movimenti, modifica/eliminazione obiettivo. In alto: messo da parte / liquidità / libera e **avviso rosso** se gli obiettivi superano la liquidità; rata mensile consigliata se c'è una scadenza; suggerimento 3-6 mesi di spese di Necessità per il fondo di emergenza. Tabelle `goals` e `goal_entries` (script `migration_goals.sql`); se mancano l'app funziona e la scheda spiega cosa fare. Test automatico in modalità demo ok; non provata con Supabase reale |
 | 2.5 | Modifica/eliminazione di movimenti, conti e categorie; Analisi per categoria e budget mensile; selezione colore dal quadratino; menu «Necessità» / «Casuale»; selettore emoji a pulsante quadrato; email e stato sincronizzazione nella sidebar. Commit presenti su `main`; non provata in browser. |
@@ -247,6 +251,7 @@ perché serve a capire a colpo d'occhio quale versione è davvero online.
 ### Registro modifiche
 | Data | Chi | Versione | Cosa è stato fatto | Note / da verificare |
 |---|---|---|---|---|
+| 2026-11-16 | ChatGPT/Codex | 3.3 | Restyling: Comfortaa, palette nero e lime con sfondo a bagliori, pannelli traslucidi e bordi arrotondati, icone SVG per navigazione e logo euro lime nella sidebar desktop. | Icona del manifest PWA invariata; font caricato da Google Fonts |
 | 2026-11-16 | ChatGPT/Codex | 3.2 | Dashboard: aggiunto riepilogo degli obiettivi con totale accantonato, liquidità libera e avanzamento dei primi 3; pulsante per aprire la scheda Obiettivi. In assenza delle tabelle mostra un collegamento alla configurazione. | Nessuna modifica al database; non provata con Supabase reale |
 | 2026-11-16 | Claude | 3.1 | Scheda Obiettivi. Nuovi: `viewGoals`, `goalCard`, `goalForm`, `goalHint`, `removeGoal`, `moneyForm`, `spendForm`, `goalDetail`, `delEntry`, `goalSaved`, `liquidity`, `allocated`, `avgNeeds`, plugin `centerText`, `GOAL_PRESETS`, `GOAL_ICONS`, `S.goals`, `S.goal_entries`, `goalsReady`; `TABS`/`render`/`botnav` a 5 schede; `load()` legge `goals` e `goal_entries` (errore ignorato se le tabelle mancano). Nuovo file `migration_goals.sql`. | **L'utente deve eseguire `migration_goals.sql` su Supabase**. «Liquidità» = conti cash+savings+carte (`LIQ_TYPES`). Le torte sono Chart.js `doughnut`, una per obiettivo, distrutte a ogni `viewGoals` |
 | 2026-11-16 | Claude | 3.0 | Budget mensile 50/30/20 personalizzabile. Nuovi: `budgetCfg`, `budgetCard`, `budgetForm`, `budgetPreset`, `budgetSum`, `BUDGET_DEFAULT`, `BUDGET_PRESETS`, `S.budget_settings`, `budgetReady`; `load()` legge anche `budget_settings` (errore ignorato se la tabella manca). Nuovo file `migration_budget.sql`. | **L'utente deve eseguire `migration_budget.sql` su Supabase** prima di poter salvare le percentuali. Risparmio = entrate − uscite nette (rimborsi sottratti); Necessità e Casuale sono uscite lorde per tipo di spesa |
