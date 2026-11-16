@@ -4,7 +4,7 @@
 > leggi questo file prima di toccare il codice e **aggiornalo ogni volta che cambi qualcosa**
 > (vedi «Registro modifiche» in fondo). Così chi arriva dopo sa cosa è stato fatto e perché.
 
-Ultimo aggiornamento di questo file: 2026-11-16 (Claude: versione 2.8, grafico andamento semplificato).
+Ultimo aggiornamento di questo file: 2026-11-16 (Claude: versione 2.9, scheda Patrimonio).
 
 ---
 
@@ -149,6 +149,7 @@ Nota sul progetto live: il vincolo `transactions_category_required` è stato agg
 - `is_necessary`: solo per le uscite (`true` = **Necessità**, `false` = **Casuale**); `null` per gli altri tipi e per le rettifiche.
 - **Trasferimento**: ha `to_account_id`, nessuna categoria; non conta come entrata né come uscita.
 - **Rimborso**: collegato a una categoria di spesa; aumenta il saldo del conto e **riduce** la spesa di quella categoria.
+- **Conti Investimenti**: si contano al **capitale versato** (saldo iniziale + trasferimenti); le rettifiche su questi conti vengono ignorate e «Riconcilia saldo» non è disponibile. Nessuna plusvalenza non realizzata.
 - **Rettifica di saldo** (Riconcilia): transazione `income`/`expense` per la differenza, con tag `rettifica`, descrizione «Rettifica saldo»; **esclusa dai KPI mensili**.
 
 ### Logica contabile (in `index.html`, funzione `balance(a)`)
@@ -203,13 +204,14 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 | 2.6 | Correzione di «Riconcilia saldo»: la rettifica ora usa la categoria «Rettifica saldo» (il vincolo `transactions_category_required` rifiutava le rettifiche senza categoria). Controllata con un test automatico in modalità demo (dashboard, riconciliazione, form, analisi, selettore emoji: nessun errore JS); **non provata con Supabase reale** |
 | 2.7 | Reinserito nell'Analisi il grafico **Andamento ultimi 6 mesi** (barre Entrate e Uscite nette + linea Risparmio, fino al mese selezionato; rettifiche escluse, rimborsi sottratti alle uscite). Provata con test automatico in modalità demo; **non provata con Supabase reale** |
 | 2.8 | Grafico andamento reso più leggibile (su richiesta dell'utente, «opzione C»): **una sola linea** (risparmio mensile) con il mese selezionato evidenziato, legenda tolta, tooltip con risparmio/entrate/uscite/tasso, e **tabella compatta** sotto (mese, entrate, uscite, risparmio, tasso). Sempre **6 mesi** terminanti nel mese selezionato, anche se vuoti. Test automatico in modalità demo ok; non provata con Supabase reale |
+| 2.9 | **Scheda Patrimonio** (al posto del segnaposto «Patrimonio & Calendario»; icona 📈): card Patrimonio/Liquidità/Investito, barra di composizione, grafico a linea a fine mese con scelta della serie (Totale/Liquidità/Investito) e dell'intervallo (6/12/24 mesi), etichette solo su primo/ultimo/minimo/massimo, tabella «Mostra valori» chiusa di default. Storico **ricalcolato dai movimenti** (`balanceAt`, `wealthSeries`), parte dal primo mese con dati. **Investimenti = solo capitale versato**: le rettifiche sui conti `investment` sono ignorate nei saldi e «Riconcilia saldo» è nascosto/bloccato su quei conti. Test automatico in modalità demo con dati su più mesi ok; non provata con Supabase reale |
 | 2.5 | Modifica/eliminazione di movimenti, conti e categorie; Analisi per categoria e budget mensile; selezione colore dal quadratino; menu «Necessità» / «Casuale»; selettore emoji a pulsante quadrato; email e stato sincronizzazione nella sidebar. Commit presenti su `main`; non provata in browser. |
 
 ## 11. Da fare (decisioni prese con l'utente il 2026-11-16)
 L'utente vuole procedere **un passo alla volta**, senza implementare tutto insieme. Ordine concordato:
 
 1. ✅ **Grafico andamento 6 mesi** in Analisi (fatto: v2.7, semplificato in v2.8 con linea del risparmio e tabella).
-2. **Scheda Patrimonio** (sostituisce il segnaposto «Patrimonio & Calendario»):
+2. ✅ **Scheda Patrimonio** (fatta, v2.9; sostituisce il segnaposto «Patrimonio & Calendario»):
    - grafico **a linea mensile**, **ricalcolato dai movimenti** (saldo iniziale + movimenti fino a fine mese): nessun compito automatico sul server;
    - mostrare **liquidità** (cash + savings + carte) e **capitale investito**; **niente plusvalenze** (non sono garantite finché non ritirate): per i conti `investment` si conta solo quanto è stato versato (trasferimenti in entrata/uscita), si **nasconde «Riconcilia saldo»** su quei conti e si escludono dal grafico le eventuali rettifiche su di essi;
    - importi **discreti**: valori esatti al tocco, etichette solo su primo/ultimo/minimo/massimo, riga di mesi scorrevole in grigio con variazione sul mese prima, tasto «Mostra valori» per l'elenco completo.
@@ -233,6 +235,7 @@ perché serve a capire a colpo d'occhio quale versione è davvero online.
 ### Registro modifiche
 | Data | Chi | Versione | Cosa è stato fatto | Note / da verificare |
 |---|---|---|---|---|
+| 2026-11-16 | Claude | 2.9 | Nuova scheda Patrimonio; `balance(a)` ora = `balanceAt(a)` (che ignora le rettifiche sui conti Investimenti); nuove funzioni `balanceAt`, `wealthSeries`, `viewPat`, `setPat`, plugin `wealthLabels`; variabili `P`, `SER`, `chart3`, `eur0`. Dashboard: «Riconcilia saldo» nascosto sui conti Investimenti. | Per far salire/scendere il valore di un investimento si usano solo i trasferimenti (capitale versato). Il tab 4 si chiama ora solo «Patrimonio»: il Calendario è rimandato |
 | 2026-11-16 | Claude | 2.8 | Analisi: grafico andamento ridisegnato (linea del risparmio + tabella). Funzioni/variabili coinvolte: `monthSummary`, `chart2`, `rateOf`, blocco `months`/`tr` in `viewAn`. | Il nome `rate` era già usato per il tasso di risparmio del mese: non riutilizzarlo |
 | 2026-11-16 | Claude | 2.7 | Grafico «Andamento ultimi 6 mesi» in Analisi (funzione `monthSummary`, variabile `chart2`). Basato sul `index.html` 2.6 (Codex + fix riconciliazione). | Se nel frattempo `index.html` è cambiato con altri strumenti, confrontare prima di sovrascrivere |
 | 2026-11-14 | Claude | 2.6 | Revisione del `index.html` di Codex (sintassi ok). Fix «Riconcilia saldo» con categoria «Rettifica saldo». Il resto del codice di Codex è invariato. | Provare con Supabase reale: riconcilia un conto e controlla che la rettifica compaia nei movimenti ma non nei KPI. La categoria «Rettifica saldo» compare nell'elenco categorie e nei menu: è voluto, non eliminarla finché ci sono rettifiche. Il grafico dell'andamento mensile (presente nella mia 2.5) resta rimosso |

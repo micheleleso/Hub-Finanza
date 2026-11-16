@@ -66,7 +66,7 @@ const SUPABASE_URL = 'https://ddfeeqybmxladzunkpbg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_F3q51ck3EEkWZ8dfPHiyWg_HkwpiRBW';
 const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 let sb;
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.9';
 // Qualsiasi errore di JavaScript viene mostrato in una barra rossa (niente più pagina muta)
 function showFatal(m){
   let b = document.getElementById('fatal');
@@ -78,13 +78,13 @@ window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reas
 const LS_KEY = 'hub_finanza_demo';
 const now = new Date();
 const pad = n => String(n).padStart(2,'0');
-let S = {accounts:[], categories:[], transactions:[]}, chart, chart2;
+let S = {accounts:[], categories:[], transactions:[]}, chart, chart2, chart3;
 let EDIT_TX_ID = null, currentEmail = '';
 // Filtri Transazioni (mese '' = tutti i mesi) e Analisi (sempre un mese preciso)
 const V = {tab:'dash', m:pad(now.getMonth()+1), y:String(now.getFullYear()), type:'', acc:'', q:''};
 const A = {m:pad(now.getMonth()+1), y:String(now.getFullYear())};
 const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
-const TABS = [['dash','Dashboard','🏠'],['tx','Transazioni','↔️'],['an','Analisi','📊'],['pat','Patrimonio','🗓️']];
+const TABS = [['dash','Dashboard','🏠'],['tx','Transazioni','↔️'],['an','Analisi','📊'],['pat','Patrimonio','📈']];
 const TYPE_LBL = {income:'Entrata', expense:'Uscita', transfer:'Trasferimento', refund:'Rimborso'};
 const ACC_LBL = {cash:'Contanti', card:'Carta', savings:'Risparmio', investment:'Investimenti'};
 const CARD = 'bg-surf rounded-2xl border border-slate-800 p-4';
@@ -116,15 +116,21 @@ const cat = id => S.categories.find(c => c.id === id);
 const toast = m => { const t=$('#toast'); t.textContent=m; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),2600); };
 
 /* Saldo = saldo iniziale + entrate + rimborsi − uscite ± trasferimenti */
-function balance(a){
+// Saldo di un conto a fine del mese `key` (AAAA-MM); senza `key` = oggi, con tutti i movimenti.
+// Sui conti Investimenti si conta solo il capitale versato: le rettifiche (plusvalenze non realizzate) sono ignorate.
+function balanceAt(a, key){
+  const end = key ? key + '-31' : '9999-12-31';
   let b = +a.initial_balance || 0;
   for (const t of S.transactions){
+    if (t.date > end) continue;
+    if (a.type === 'investment' && (t.tags||[]).includes('rettifica')) continue;
     const x = +t.amount;
     if (t.account_id === a.id) b += (t.type==='income' || t.type==='refund') ? x : -x; // uscita e trasferimento in uscita
     if (t.type==='transfer' && t.to_account_id === a.id) b += x;
   }
   return b;
 }
+const balance = a => balanceAt(a);
 
 /* ===================== DATI: localStorage con salvataggio automatico ===================== */
 const save = () => localStorage.setItem(LS_KEY, JSON.stringify(S));
@@ -303,7 +309,7 @@ function viewDash(){
       <span class="h-3 w-3 rounded-full" style="background:${esc(a.color)}"></span>
       <div class="flex-1 min-w-0"><div class="text-sm font-medium truncate">${esc(a.name)}</div><div class="text-xs text-slate-400">${ACC_LBL[a.type]}</div></div>
       <div class="text-right"><div class="tabular text-sm font-semibold">${eur(balance(a))}</div>
-      <button onclick="reconc('${a.id}')" class="text-xs text-mint hover:underline">Riconcilia saldo</button>
+      ${a.type==='investment' ? '<div class="text-[11px] text-slate-500">capitale versato</div>' : `<button onclick="reconc('${a.id}')" class="text-xs text-mint hover:underline">Riconcilia saldo</button>`}
       <div class="mt-1 flex gap-2 justify-end"><button onclick="newItem('account','${a.id}')" class="text-xs text-slate-400 hover:text-mint">Modifica</button><button onclick="removeItem('account','${a.id}')" class="text-xs text-slate-500 hover:text-red-400">Elimina</button></div></div></div>`).join('')
     || `<div class="${CARD} text-sm text-slate-400">Nessun conto. <button class="text-mint underline" onclick="newItem('account')">Creane uno</button></div>`;
   const recent = sorted().slice(0,5).map(t => row(t,false)).join('') || '<div class="p-4 text-sm text-slate-400">Nessun movimento.</div>';
@@ -311,7 +317,7 @@ function viewDash(){
     <h1 class="text-xl font-semibold mb-4">Dashboard</h1>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${k('Totale Contanti',cash,'cassa + risparmio')}${k('Totale Carte',card,'carte e conti')}
-      ${k('Totale Investimenti',inv,'broker')}${k('Patrimonio Totale',cash+card+inv,'somma di tutto',true)}</div>
+      ${k('Totale Investimenti',inv,'capitale versato')}${k('Patrimonio Totale',cash+card+inv,'somma di tutto',true)}</div>
     <div class="flex items-center justify-between mt-8 mb-3"><h2 class="font-semibold">I miei conti</h2>
       <button class="${B2}" onclick="newItem('account')">+ Conto</button></div>
     <div class="grid md:grid-cols-2 gap-3">${accs}</div>
@@ -322,6 +328,7 @@ function viewDash(){
 /* Riconciliazione: crea una transazione di rettifica (tag "rettifica") pari alla differenza */
 function reconc(id){
   const a = acc(id);
+  if (a.type === 'investment') return toast('Per gli investimenti conta solo quanto hai versato: usa un trasferimento.');
   modal(`<h3 class="font-semibold mb-1">Riconcilia «${esc(a.name)}»</h3>
     <p class="text-sm text-slate-400 mb-4">Saldo calcolato: <b class="text-slate-100">${eur(balance(a))}</b>. Inserisci il saldo reale: verrà creata una rettifica per la differenza.</p>
     <form id="rf" class="space-y-3"><input name="real" inputmode="decimal" placeholder="Saldo reale (€)" class="${IN}" required>
@@ -537,13 +544,76 @@ function viewAn(){
       scales:{x:{grid:{display:false}}, y:{grid:{color:c => c.tick.value === 0 ? '#475569' : '#1e293b'}, ticks:{callback:v => Math.abs(v) >= 1000 ? (v/1000) + 'k' : v}}}}});
 }
 
-/* ===================== TAB 4 · PATRIMONIO & CALENDARIO (segnaposto) ===================== */
+/* ===================== TAB 4 · PATRIMONIO ===================== */
+// Liquidità e capitale investito a fine mese, ricalcolati dai movimenti (nessun compito automatico sul server).
+// Gli investimenti sono contati al capitale versato: niente plusvalenze non realizzate.
+const P = {range:12, serie:'tot', open:false};
+const SER = {tot:{label:'Totale', color:'#29FFC2'}, liq:{label:'Liquidità', color:'#818cf8'}, inv:{label:'Investito', color:'#f59e0b'}};
+const LIQ_TYPES = ['cash','savings','card'];
+const eur0 = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
+const setPat = (k,v) => { P[k] = v; viewPat(); };
+function wealthSeries(range){
+  const now = new Date(), cur = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  const firsts = S.transactions.map(t => t.date.slice(0,7)).concat(S.accounts.filter(a => a.created_at).map(a => a.created_at.slice(0,7))).sort();
+  const start = firsts[0] || cur, pts = [];
+  for (let i = range - 1; i >= 0; i--){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1), key = `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+    if (key < start) continue;                                     // niente mesi prima dell'inizio dei dati
+    const at = key === cur ? null : key, sumT = f => S.accounts.filter(f).reduce((s,a) => s + balanceAt(a, at), 0);
+    const liq = sumT(a => LIQ_TYPES.includes(a.type)), inv = sumT(a => a.type === 'investment');
+    pts.push({key, label:MESI[d.getMonth()].slice(0,3) + ' ' + String(d.getFullYear()).slice(2), liq, inv, tot:liq + inv});
+  }
+  return pts;
+}
+// Etichette con l'importo solo su primo, ultimo, minimo e massimo (gli altri valori restano al tocco)
+const wealthLabels = {id:'wealthLabels', afterDatasetsDraw(ch){
+  const vals = ch.data.datasets[0].data, meta = ch.getDatasetMeta(0), ctx = ch.ctx;
+  if (!vals.length) return;
+  const idx = [...new Set([0, vals.length-1, vals.indexOf(Math.max(...vals)), vals.indexOf(Math.min(...vals))])];
+  ctx.save(); ctx.fillStyle = '#cbd5e1'; ctx.font = '11px system-ui, sans-serif';
+  idx.forEach(i => { const p = meta.data[i]; if (!p) return;
+    ctx.textAlign = i === 0 ? 'left' : i === vals.length-1 ? 'right' : 'center';
+    ctx.fillText(eur0(vals[i]), p.x, p.y - 10); });
+  ctx.restore(); }};
 function viewPat(){
-  const ph = (t,d) => `<div class="rounded-2xl border-2 border-dashed border-slate-700 p-8 text-center"><div class="font-medium">${t}</div><p class="text-sm text-slate-400 mt-1">${d}</p></div>`;
-  $('#view').innerHTML = `<h1 class="text-xl font-semibold mb-4">Patrimonio &amp; Calendario</h1>
-    <div class="grid md:grid-cols-2 gap-3">
-      ${ph('📈 Evoluzione del patrimonio','Grafico storico per conto e per tipologia — in arrivo nella prossima fase.')}
-      ${ph('🗓️ Calendario','Scadenze, spese ricorrenti e vista a calendario dei movimenti — in arrivo nella prossima fase.')}</div>`;
+  const pts = wealthSeries(P.range), last = pts.length - 1;
+  const bt = f => S.accounts.filter(f).reduce((s,a) => s + balance(a), 0);
+  const liq = bt(a => LIQ_TYPES.includes(a.type)), inv = bt(a => a.type === 'investment'), tot = liq + inv;
+  const delta = pts.length > 1 ? pts[last].tot - pts[last-1].tot : null;
+  const share = tot > 0 ? Math.max(0, Math.min(100, liq / tot * 100)) : 0;
+  const card = (l,v,sub,hi,cls='') => `<div class="rounded-2xl p-4 border ${hi?'bg-mint/10 border-mint/50':'bg-surf border-slate-800'} ${cls}">
+    <div class="text-xs ${hi?'text-mint':'text-slate-400'}">${l}</div><div class="mt-1 text-xl font-semibold tabular ${hi?'text-mint':''}">${eur(v)}</div>
+    <div class="text-[11px] ${hi?'text-slate-400':'text-slate-500'}">${sub}</div></div>`;
+  const chips = (opts, cur, fn, cls) => `<div class="grid ${cls} gap-1 rounded-xl bg-bg p-1">${opts.map(([k,l]) =>
+    `<button type="button" onclick="${fn}(${typeof k==='number'?k:`'${k}'`})" class="rounded-lg py-1.5 text-xs font-medium ${String(k)===String(cur)?SEG_ON:SEG_OFF}">${l}</button>`).join('')}</div>`;
+  const tRows = pts.map((x,i) => { const d = i > 0 ? x.tot - pts[i-1].tot : null, sel = i === last;
+    return `<tr class="${sel?'bg-mint/10':''}"><td class="py-1.5 pl-2 ${sel?'font-medium text-mint':'text-slate-300'}">${x.label}</td>
+      <td class="text-right tabular">${eur0(x.liq)}</td><td class="text-right tabular">${eur0(x.inv)}</td><td class="text-right tabular">${eur0(x.tot)}</td>
+      <td class="text-right tabular pr-2 ${d===null?'text-slate-600':d>=0?'text-mint':'text-red-400'}">${d===null?'–':(d>=0?'+':'−')+eur0(Math.abs(d))}</td></tr>`; }).join('');
+  $('#view').innerHTML = `
+    <h1 class="text-xl font-semibold mb-4">Patrimonio</h1>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+      ${card('Patrimonio', tot, delta === null ? 'liquidità + capitale investito' : `${delta>=0?'+':'−'}${eur0(Math.abs(delta))} rispetto al mese scorso`, true, 'col-span-2 md:col-span-1')}
+      ${card('Liquidità', liq, 'contanti, carte e risparmio')}${card('Investito', inv, 'capitale versato, senza plusvalenze')}</div>
+    ${tot > 0 ? `<div class="${CARD} mt-3"><div class="flex justify-between text-xs text-slate-400 mb-2"><span>Liquidità ${share.toFixed(0)}%</span><span>Investito ${(100-share).toFixed(0)}%</span></div>
+      <div class="h-2.5 rounded-full bg-amber-400/40 overflow-hidden"><div class="h-2.5 bg-indigo-400" style="width:${share}%"></div></div></div>` : ''}
+    <div class="${CARD} mt-3"><h2 class="font-semibold mb-3">Andamento a fine mese</h2>
+      <div class="grid grid-cols-2 gap-2 mb-3">${chips(Object.entries(SER).map(([k,v]) => [k,v.label]), P.serie, 'setPat', 'grid-cols-3')}${chips([[6,'6 mesi'],[12,'12 mesi'],[24,'24 mesi']], P.range, 'setPat', 'grid-cols-3')}</div>
+      ${pts.length >= 2 ? '<div class="h-56"><canvas id="ch3"></canvas></div>' : '<p class="text-sm text-slate-400 py-6 text-center">Servono almeno due mesi di dati per vedere l\'andamento.</p>'}
+      ${pts.length ? `<button class="${B2} w-full mt-3" onclick="setPat('open',${!P.open})">${P.open?'Nascondi valori':'Mostra valori'}</button>` : ''}
+      ${P.open && pts.length ? `<div class="overflow-x-auto mt-3"><table class="w-full text-xs"><thead><tr class="text-slate-500"><th class="text-left font-normal py-1 pl-2">Mese</th><th class="text-right font-normal">Liquidità</th><th class="text-right font-normal">Investito</th><th class="text-right font-normal">Totale</th><th class="text-right font-normal pr-2">Variaz.</th></tr></thead>
+        <tbody class="divide-y divide-slate-800">${tRows}</tbody></table></div>` : ''}</div>`;
+  if (chart3){ chart3.destroy(); chart3 = null; }
+  if (pts.length >= 2){
+    Chart.defaults.color = '#94a3b8';
+    const sr = SER[P.serie];
+    chart3 = new Chart($('#ch3'), {type:'line', plugins:[wealthLabels],
+      data:{labels:pts.map(x => x.label), datasets:[{label:sr.label, data:pts.map(x => x[P.serie]), borderColor:sr.color, tension:.3, borderWidth:2,
+        pointRadius:c => c.dataIndex === last ? 6 : 3, pointBackgroundColor:c => c.dataIndex === last ? sr.color : '#111827', pointBorderColor:sr.color, pointBorderWidth:2}]},
+      options:{maintainAspectRatio:false, layout:{padding:{top:22, right:12, left:4}}, interaction:{mode:'index', intersect:false},
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => { const x = pts[c.dataIndex]; return [`Totale: ${eur0(x.tot)}`, `Liquidità: ${eur0(x.liq)}`, `Investito: ${eur0(x.inv)}`]; }}}},
+        scales:{x:{grid:{display:false}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => Math.abs(v) >= 1000 ? (v/1000) + 'k' : v}}}}});
+  }
 }
 
 /* ===================== AVVIO ===================== */
