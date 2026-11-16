@@ -66,7 +66,7 @@ const SUPABASE_URL = 'https://ddfeeqybmxladzunkpbg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_F3q51ck3EEkWZ8dfPHiyWg_HkwpiRBW';
 const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 let sb;
-const APP_VERSION = '2.9';
+const APP_VERSION = '3.0';
 // Qualsiasi errore di JavaScript viene mostrato in una barra rossa (niente più pagina muta)
 function showFatal(m){
   let b = document.getElementById('fatal');
@@ -78,7 +78,7 @@ window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reas
 const LS_KEY = 'hub_finanza_demo';
 const now = new Date();
 const pad = n => String(n).padStart(2,'0');
-let S = {accounts:[], categories:[], transactions:[]}, chart, chart2, chart3;
+let S = {accounts:[], categories:[], transactions:[], budget_settings:[]}, chart, chart2, chart3, budgetReady = true;
 let EDIT_TX_ID = null, currentEmail = '';
 // Filtri Transazioni (mese '' = tutti i mesi) e Analisi (sempre un mese preciso)
 const V = {tab:'dash', m:pad(now.getMonth()+1), y:String(now.getFullYear()), type:'', acc:'', q:''};
@@ -157,12 +157,15 @@ async function load(){
   if (DEMO){
     try { const raw = localStorage.getItem(LS_KEY); S = raw ? JSON.parse(raw) : seed(); }
     catch { S = seed(); }
+    S.budget_settings = S.budget_settings || [];
     return save();
   }
   const r = await Promise.all(['accounts','categories','transactions'].map(n => sb.from(n).select('*').order('created_at')));
   const bad = r.find(x => x.error);
   if (bad) return toast('Errore database: ' + bad.error.message);
-  S = {accounts:r[0].data, categories:r[1].data, transactions:r[2].data};
+  const bs = await sb.from('budget_settings').select('*').limit(1);   // se la tabella non esiste ancora: budget non salvabile, ma l'app funziona
+  budgetReady = !bs.error;
+  S = {accounts:r[0].data, categories:r[1].data, transactions:r[2].data, budget_settings:bs.error ? [] : bs.data};
   if (!S.categories.length){                       // primo accesso: categorie di default
     const {data} = await sb.from('categories').insert(DEFAULT_CATS).select();
     S.categories = data || [];
@@ -474,6 +477,67 @@ function monthSummary(key){
   const inc = sum(t => t.type==='income'), spese = sum(t => t.type==='expense') - sum(t => t.type==='refund');
   return {inc, spese, risp: inc - spese};
 }
+/* ===================== BUDGET MENSILE (stile 50/30/20, percentuali scelte dall'utente) ===================== */
+const BUDGET_DEFAULT = {needs_pct:50, wants_pct:30, savings_pct:20, expected_income:null};
+const budgetCfg = () => ({...BUDGET_DEFAULT, ...((S.budget_settings || [])[0] || {})});
+function budgetCard(inc, nec, cas, risp, rf){
+  const c = budgetCfg(), exp = +c.expected_income > 0 ? +c.expected_income : 0;
+  const base = exp > 0 ? exp : inc, basis = exp > 0 ? 'entrata mensile prevista' : 'entrate del mese';
+  const head = `<div class="flex items-center justify-between gap-2 mb-3"><h2 class="font-semibold">Budget del mese <span class="font-normal text-slate-500">· ${+c.needs_pct}/${+c.wants_pct}/${+c.savings_pct}</span></h2>
+    <button class="${B2}" onclick="budgetForm()">Modifica</button></div>`;
+  if (!(base > 0)) return `<div class="${CARD} mt-3">${head}<p class="text-sm text-slate-400">Nessuna entrata registrata in questo mese. Registra lo stipendio, oppure imposta da «Modifica» una <b class="text-slate-200">entrata mensile prevista</b>: vedrai subito quanto puoi spendere.</p></div>`;
+  const pct = v => (v / base * 100).toFixed(0) + '%';
+  // limite di spesa (Necessità, Casuale): barra che si riempie, rossa se superi
+  const limit = (name, spent, p) => { const target = base * p / 100, ratio = target > 0 ? spent / target : (spent > 0 ? 2 : 0), over = ratio > 1;
+    return `<div><div class="flex items-baseline justify-between gap-2 text-sm"><span>${name} <span class="text-xs text-slate-500">obiettivo ${p}% · reale ${pct(spent)}</span></span>
+      <span class="tabular shrink-0">${eur(spent)} <span class="text-xs text-slate-500">/ ${eur(target)}</span></span></div>
+      <div class="h-2 rounded-full bg-slate-800 mt-1"><div class="h-2 rounded-full ${over?'bg-red-400':'bg-mint'}" style="width:${Math.min(100, ratio*100)}%"></div></div>
+      <div class="text-[11px] mt-0.5 ${over?'text-red-400':'text-slate-500'}">${over ? 'Superato di ' + eur(spent - target) : 'Ti restano ' + eur(target - spent)}</div></div>`; };
+  // obiettivo di risparmio: barra che si riempie verso la meta
+  const sp = +c.savings_pct, sTarget = base * sp / 100, sRatio = sTarget > 0 ? risp / sTarget : (risp > 0 ? 1 : 0), reached = risp >= sTarget && sTarget > 0 || (sTarget === 0 && risp >= 0);
+  const saving = `<div><div class="flex items-baseline justify-between gap-2 text-sm"><span>Risparmio <span class="text-xs text-slate-500">obiettivo ${sp}% · reale ${pct(risp)}</span></span>
+      <span class="tabular shrink-0 ${risp<0?'text-red-400':''}">${eur(risp)} <span class="text-xs text-slate-500">/ ${eur(sTarget)}</span></span></div>
+      <div class="h-2 rounded-full bg-slate-800 mt-1"><div class="h-2 rounded-full ${reached?'bg-mint':risp<0?'bg-red-400':'bg-amber-400'}" style="width:${Math.max(0, Math.min(100, sRatio*100))}%"></div></div>
+      <div class="text-[11px] mt-0.5 ${reached?'text-mint':risp<0?'text-red-400':'text-slate-500'}">${reached ? 'Obiettivo raggiunto' : risp < 0 ? 'Stai spendendo più di quanto entra' : 'Mancano ' + eur(sTarget - risp)}</div></div>`;
+  return `<div class="${CARD} mt-3">${head}<div class="space-y-4">${limit('Necessità', nec, +c.needs_pct)}${limit('Casuale', cas, +c.wants_pct)}${saving}</div>
+    <p class="text-xs text-slate-500 mt-3">Calcolato su ${basis}: ${eur(base)}.${rf > 0 ? ' I rimborsi riducono le uscite totali e aumentano il risparmio.' : ''}</p></div>`;
+}
+const BUDGET_PRESETS = [[50,30,20],[60,20,20],[70,20,10],[80,10,10]];
+function budgetForm(){
+  const c = budgetCfg();
+  modal(`<h3 class="font-semibold mb-1">Budget mensile</h3>
+    <p class="text-sm text-slate-400 mb-3">Dividi le entrate del mese in <b class="text-slate-200">Necessità</b>, <b class="text-slate-200">Casuale</b> (desideri) e <b class="text-slate-200">Risparmio</b>. Il modello classico è 50/30/20, ma le percentuali le scegli tu.</p>
+    <div class="flex flex-wrap gap-2 mb-3">${BUDGET_PRESETS.map(p => `<button type="button" class="${B2}" onclick="budgetPreset(${p.join(',')})">${p.join('/')}</button>`).join('')}</div>
+    <form id="bf" class="space-y-3">
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-slate-400">Necessità %</label><input name="n" type="number" min="0" max="100" step="1" inputmode="numeric" value="${+c.needs_pct}" oninput="budgetSum()" class="${IN}"></div>
+        <div><label class="text-xs text-slate-400">Casuale %</label><input name="w" type="number" min="0" max="100" step="1" inputmode="numeric" value="${+c.wants_pct}" oninput="budgetSum()" class="${IN}"></div>
+        <div><label class="text-xs text-slate-400">Risparmio %</label><input name="s" type="number" min="0" max="100" step="1" inputmode="numeric" value="${+c.savings_pct}" oninput="budgetSum()" class="${IN}"></div></div>
+      <div id="bsum" class="text-sm"></div>
+      <div><label class="text-xs text-slate-400">Entrata mensile prevista (€, facoltativa)</label>
+        <input name="inc" inputmode="decimal" placeholder="Vuota = uso le entrate reali del mese" value="${+c.expected_income > 0 ? String(c.expected_income).replace('.', ',') : ''}" class="${IN}">
+        <p class="text-xs text-slate-500 mt-1">Utile per sapere quanto puoi spendere già a inizio mese, prima che arrivi lo stipendio.</p></div>
+      <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button id="bsave" class="${B1} flex-1">Salva</button></div>
+    </form>`);
+  budgetSum();
+  $('#bf').onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target), n = +f.get('n') || 0, w = +f.get('w') || 0, sv = +f.get('s') || 0;
+    if (n + w + sv !== 100) return toast('Le tre percentuali devono fare 100');
+    if (!DEMO && !budgetReady) return toast('Prima esegui su Supabase lo script migration_budget.sql (una volta sola).');
+    const inc = parseFloat(String(f.get('inc') || '').replace(',', '.'));
+    const patch = {needs_pct:n, wants_pct:w, savings_pct:sv, expected_income:inc > 0 ? inc : null};
+    const cur = (S.budget_settings || [])[0];
+    if (cur) upd('budget_settings', cur.id, patch); else ins('budget_settings', patch);
+    closeModal(); render();
+  };
+}
+function budgetPreset(n, w, sv){ const f = $('#bf').elements; f.n.value = n; f.w.value = w; f.s.value = sv; budgetSum(); }
+function budgetSum(){
+  const f = $('#bf').elements, tot = (+f.n.value || 0) + (+f.w.value || 0) + (+f.s.value || 0), ok = tot === 100;
+  $('#bsum').innerHTML = `<span class="${ok ? 'text-mint' : 'text-amber-300'}">Totale: ${tot}% ${ok ? '✓' : '— deve fare 100%'}</span>`;
+  const b = $('#bsave'); b.disabled = !ok; b.classList.toggle('opacity-40', !ok);
+}
 function viewAn(){
   // Le rettifiche di riconciliazione (tag "rettifica") sono escluse dai KPI
   const key = `${A.y}-${A.m}`;
@@ -512,8 +576,9 @@ function viewAn(){
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${k('Entrate',eur(inc),'text-mint')}${k('Uscite (nette rimborsi)',eur(spese))}
       ${k('Risparmio',eur(risp),risp<0?'text-red-400':'text-mint')}${k('Tasso di risparmio',rate.toFixed(1)+'%',rate<0?'text-red-400':'')}</div>
+    ${budgetCard(inc, nec, cas, risp, rf)}
     <div class="grid md:grid-cols-2 gap-3 mt-3"><div class="${CARD}"><h2 class="font-semibold mb-2">Entrate per categoria</h2>${catList(incomeRows)}</div><div class="${CARD}"><h2 class="font-semibold mb-2">Uscite nette per categoria</h2>${catList(expenseRows)}</div></div>
-    <div class="${CARD} mt-3"><h2 class="font-semibold mb-2">Budget mensili · ${MESI[+A.m-1]} ${A.y}</h2>${budgetHtml}</div>
+    <div class="${CARD} mt-3"><h2 class="font-semibold mb-2">Budget per categoria · ${MESI[+A.m-1]} ${A.y}</h2>${budgetHtml}</div>
     <div class="${CARD} mt-3"><h2 class="font-semibold mb-3">Spese: Necessità e Casuale</h2>
       <div class="grid md:grid-cols-2 gap-4 items-center">
         <div class="h-52"><canvas id="ch"></canvas></div>
@@ -674,7 +739,7 @@ async function boot(){
   if (!DEMO){
     if (!sb){
       sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT'){ currentEmail=''; S = {accounts:[],categories:[],transactions:[]}; showAuth(); } });
+      sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT'){ currentEmail=''; S = {accounts:[],categories:[],transactions:[],budget_settings:[]}; showAuth(); } });
       // Al ritorno sull'app ricarica i dati (per vedere le modifiche fatte da un altro dispositivo)
       const sync = () => {
         const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');

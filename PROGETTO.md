@@ -4,7 +4,7 @@
 > leggi questo file prima di toccare il codice e **aggiornalo ogni volta che cambi qualcosa**
 > (vedi «Registro modifiche» in fondo). Così chi arriva dopo sa cosa è stato fatto e perché.
 
-Ultimo aggiornamento di questo file: 2026-11-16 (Claude: versione 2.9, scheda Patrimonio).
+Ultimo aggiornamento di questo file: 2026-11-16 (Claude: versione 3.0, budget mensile personalizzabile).
 
 ---
 
@@ -35,6 +35,7 @@ Interfaccia e messaggi sono **in italiano**.
 | `manifest.webmanifest` | Manifest PWA (tema scuro, icona SVG incorporata) |
 | `sw.js` | Service worker minimo: network-first con fallback sulla cache; non mette in cache le chiamate a Supabase |
 | `schema.sql` | Schema del database da eseguire nell'SQL Editor di Supabase (riportato anche al §6) |
+| `migration_budget.sql` | Script da eseguire **una volta** su Supabase per creare la tabella `budget_settings` (budget mensile personalizzabile) |
 | `PROGETTO.md` | Questo file |
 | `README.md` | Creato da GitHub |
 
@@ -142,6 +143,9 @@ create policy "transactions: solo le proprie" on public.transactions
 
 Nota sul progetto live: il vincolo `transactions_category_required` è stato aggiunto come `NOT VALID` per preservare una transazione storica senza categoria; continua comunque a controllare nuove righe e righe modificate. Dalla versione 2.6 `Riconcilia saldo` crea la rettifica con la categoria «Rettifica saldo» (creata al bisogno, una per Entrata e una per Uscita), quindi rispetta il vincolo.
 
+### Tabella `budget_settings` (aggiunta con la v3.0, script `migration_budget.sql`)
+Una riga per utente (`user_id` unico, `default auth.uid()`), RLS attiva: `needs_pct` (Necessità), `wants_pct` (Casuale), `savings_pct` (Risparmio) con vincolo **somma = 100**, e `expected_income` (entrata mensile prevista, facoltativa). Default 50/30/20.
+
 ### Regole del modello dati
 - `accounts.type`: `cash`, `card`, `savings`, `investment`.
 - `categories.type`: `income` o `expense`; `monthly_budget` è opzionale.
@@ -205,6 +209,7 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 | 2.7 | Reinserito nell'Analisi il grafico **Andamento ultimi 6 mesi** (barre Entrate e Uscite nette + linea Risparmio, fino al mese selezionato; rettifiche escluse, rimborsi sottratti alle uscite). Provata con test automatico in modalità demo; **non provata con Supabase reale** |
 | 2.8 | Grafico andamento reso più leggibile (su richiesta dell'utente, «opzione C»): **una sola linea** (risparmio mensile) con il mese selezionato evidenziato, legenda tolta, tooltip con risparmio/entrate/uscite/tasso, e **tabella compatta** sotto (mese, entrate, uscite, risparmio, tasso). Sempre **6 mesi** terminanti nel mese selezionato, anche se vuoti. Test automatico in modalità demo ok; non provata con Supabase reale |
 | 2.9 | **Scheda Patrimonio** (al posto del segnaposto «Patrimonio & Calendario»; icona 📈): card Patrimonio/Liquidità/Investito, barra di composizione, grafico a linea a fine mese con scelta della serie (Totale/Liquidità/Investito) e dell'intervallo (6/12/24 mesi), etichette solo su primo/ultimo/minimo/massimo, tabella «Mostra valori» chiusa di default. Storico **ricalcolato dai movimenti** (`balanceAt`, `wealthSeries`), parte dal primo mese con dati. **Investimenti = solo capitale versato**: le rettifiche sui conti `investment` sono ignorate nei saldi e «Riconcilia saldo» è nascosto/bloccato su quei conti. Test automatico in modalità demo con dati su più mesi ok; non provata con Supabase reale |
+| 3.0 | **Budget mensile personalizzabile** (stile 50/30/20) nell'Analisi: card «Budget del mese» dopo i KPI con tre righe (Necessità, Casuale, Risparmio), obiettivo % e valore reale, barre, «Ti restano / Superato di / Mancano»; modulo «Modifica» con preset (50/30/20, 60/20/20, 70/20/10, 80/10/10), tre percentuali libere che devono fare 100 e **entrata mensile prevista** facoltativa (se vuota si usano le entrate reali del mese). Salvataggio nella nuova tabella `budget_settings` (una riga per utente, RLS; script `migration_budget.sql`). Se la tabella non esiste l'app funziona lo stesso ma il budget non si salva. La card per categoria è stata rinominata «Budget per categoria». Test automatico in modalità demo ok; non provata con Supabase reale |
 | 2.5 | Modifica/eliminazione di movimenti, conti e categorie; Analisi per categoria e budget mensile; selezione colore dal quadratino; menu «Necessità» / «Casuale»; selettore emoji a pulsante quadrato; email e stato sincronizzazione nella sidebar. Commit presenti su `main`; non provata in browser. |
 
 ## 11. Da fare (decisioni prese con l'utente il 2026-11-16)
@@ -215,7 +220,7 @@ L'utente vuole procedere **un passo alla volta**, senza implementare tutto insie
    - grafico **a linea mensile**, **ricalcolato dai movimenti** (saldo iniziale + movimenti fino a fine mese): nessun compito automatico sul server;
    - mostrare **liquidità** (cash + savings + carte) e **capitale investito**; **niente plusvalenze** (non sono garantite finché non ritirate): per i conti `investment` si conta solo quanto è stato versato (trasferimenti in entrata/uscita), si **nasconde «Riconcilia saldo»** su quei conti e si escludono dal grafico le eventuali rettifiche su di essi;
    - importi **discreti**: valori esatti al tocco, etichette solo su primo/ultimo/minimo/massimo, riga di mesi scorrevole in grigio con variazione sul mese prima, tasto «Mostra valori» per l'elenco completo.
-3. **Budget personalizzabile**: modello 50/30/20 come punto di partenza, ma l'utente sceglie le tre percentuali (Necessità / Casuale / Risparmio). Confronto con i mesi reali («sei al 62/25/13»), **senza AI**. Servirà una piccola tabella per le impostazioni (con RLS).
+3. ✅ **Budget personalizzabile** (fatto, v3.0): modello 50/30/20 come punto di partenza, ma l'utente sceglie le tre percentuali (Necessità / Casuale / Risparmio). Confronto con i mesi reali («sei al 62/25/13»), **senza AI**. Servirà una piccola tabella per le impostazioni (con RLS).
 4. **Scheda Obiettivi** (diventa la 5ª scheda; nome provvisorio, il Calendario potrà entrarci in futuro):
    - ogni obiettivo ha nome, importo da raggiungere e un **grafico a torta che si riempie**;
    - modello **accantonamento**: i soldi restano sui conti veri, l'obiettivo è una quota messa da parte; «Aggiungi» e «Preleva» con storico, «Usa fondi» registra la spesa vera in Transazioni e scala l'obiettivo; **avviso** se la somma degli obiettivi supera la liquidità;
@@ -235,6 +240,7 @@ perché serve a capire a colpo d'occhio quale versione è davvero online.
 ### Registro modifiche
 | Data | Chi | Versione | Cosa è stato fatto | Note / da verificare |
 |---|---|---|---|---|
+| 2026-11-16 | Claude | 3.0 | Budget mensile 50/30/20 personalizzabile. Nuovi: `budgetCfg`, `budgetCard`, `budgetForm`, `budgetPreset`, `budgetSum`, `BUDGET_DEFAULT`, `BUDGET_PRESETS`, `S.budget_settings`, `budgetReady`; `load()` legge anche `budget_settings` (errore ignorato se la tabella manca). Nuovo file `migration_budget.sql`. | **L'utente deve eseguire `migration_budget.sql` su Supabase** prima di poter salvare le percentuali. Risparmio = entrate − uscite nette (rimborsi sottratti); Necessità e Casuale sono uscite lorde per tipo di spesa |
 | 2026-11-16 | Claude | 2.9 | Nuova scheda Patrimonio; `balance(a)` ora = `balanceAt(a)` (che ignora le rettifiche sui conti Investimenti); nuove funzioni `balanceAt`, `wealthSeries`, `viewPat`, `setPat`, plugin `wealthLabels`; variabili `P`, `SER`, `chart3`, `eur0`. Dashboard: «Riconcilia saldo» nascosto sui conti Investimenti. | Per far salire/scendere il valore di un investimento si usano solo i trasferimenti (capitale versato). Il tab 4 si chiama ora solo «Patrimonio»: il Calendario è rimandato |
 | 2026-11-16 | Claude | 2.8 | Analisi: grafico andamento ridisegnato (linea del risparmio + tabella). Funzioni/variabili coinvolte: `monthSummary`, `chart2`, `rateOf`, blocco `months`/`tr` in `viewAn`. | Il nome `rate` era già usato per il tasso di risparmio del mese: non riutilizzarlo |
 | 2026-11-16 | Claude | 2.7 | Grafico «Andamento ultimi 6 mesi» in Analisi (funzione `monthSummary`, variabile `chart2`). Basato sul `index.html` 2.6 (Codex + fix riconciliazione). | Se nel frattempo `index.html` è cambiato con altri strumenti, confrontare prima di sovrascrivere |
