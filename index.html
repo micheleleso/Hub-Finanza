@@ -66,7 +66,7 @@ const SUPABASE_URL = 'https://ddfeeqybmxladzunkpbg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_F3q51ck3EEkWZ8dfPHiyWg_HkwpiRBW';
 const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 let sb;
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.7';
 // Qualsiasi errore di JavaScript viene mostrato in una barra rossa (niente più pagina muta)
 function showFatal(m){
   let b = document.getElementById('fatal');
@@ -78,7 +78,7 @@ window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reas
 const LS_KEY = 'hub_finanza_demo';
 const now = new Date();
 const pad = n => String(n).padStart(2,'0');
-let S = {accounts:[], categories:[], transactions:[]}, chart;
+let S = {accounts:[], categories:[], transactions:[]}, chart, chart2;
 let EDIT_TX_ID = null, currentEmail = '';
 // Filtri Transazioni (mese '' = tutti i mesi) e Analisi (sempre un mese preciso)
 const V = {tab:'dash', m:pad(now.getMonth()+1), y:String(now.getFullYear()), type:'', acc:'', q:''};
@@ -460,6 +460,13 @@ function newItem(kind = 'category', editId = null){
 
 /* ===================== TAB 3 · ANALISI MENSILE ===================== */
 const setAn = (k,v) => { A[k] = v; viewAn(); };
+// Totali di un mese per il grafico dell'andamento (rettifiche escluse, rimborsi sottratti alle uscite)
+function monthSummary(key){
+  const ms = S.transactions.filter(t => t.date.startsWith(key) && !(t.tags||[]).includes('rettifica'));
+  const sum = f => ms.filter(f).reduce((s,t) => s + +t.amount, 0);
+  const inc = sum(t => t.type==='income'), spese = sum(t => t.type==='expense') - sum(t => t.type==='refund');
+  return {inc, spese, risp: inc - spese};
+}
 function viewAn(){
   // Le rettifiche di riconciliazione (tag "rettifica") sono escluse dai KPI
   const key = `${A.y}-${A.m}`;
@@ -495,12 +502,29 @@ function viewAn(){
           <div><div class="flex justify-between"><span class="text-slate-300">Necessità</span><b class="tabular text-mint">${eur(nec)} · ${pn.toFixed(0)}%</b></div>
             <div class="h-2 rounded-full bg-amber-400/20 mt-1"><div class="h-2 rounded-full bg-mint" style="width:${pn}%"></div></div></div>
           <div class="flex justify-between"><span class="text-slate-300">Casuale</span><b class="tabular text-amber-300">${eur(cas)} · ${ex>0?(100-pn).toFixed(0):0}%</b></div>
-          <p class="text-xs text-slate-500">Rimborsi sottratti dal totale uscite; rettifiche di saldo escluse.</p></div></div></div>`;
+          <p class="text-xs text-slate-500">Rimborsi sottratti dal totale uscite; rettifiche di saldo escluse.</p></div></div></div>
+    <div class="${CARD} mt-3"><div class="flex items-baseline justify-between mb-3"><h2 class="font-semibold">Andamento ultimi 6 mesi</h2><span class="text-xs text-slate-500">fino a ${MESI[+A.m-1]} ${A.y}</span></div><div class="h-60"><canvas id="ch2"></canvas></div></div>`;
   if (chart) chart.destroy();
   Chart.defaults.color = '#94a3b8';
   chart = new Chart($('#ch'), {type:'doughnut',
     data:{labels:['Necessità','Casuale'], datasets:[{data:ex>0?[nec,cas]:[1,0], backgroundColor:ex>0?['#29FFC2','#f59e0b']:['#1e293b','#1e293b'], borderColor:'#111827', borderWidth:3}]},
     options:{cutout:'70%', maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}});
+  // Andamento degli ultimi 6 mesi (fino al mese selezionato): entrate, uscite nette e risparmio
+  const months = [];
+  for (let i = 5; i >= 0; i--){
+    const d = new Date(+A.y, +A.m - 1 - i, 1);
+    months.push({key:`${d.getFullYear()}-${pad(d.getMonth()+1)}`, label:MESI[d.getMonth()].slice(0,3) + ' ' + String(d.getFullYear()).slice(2)});
+  }
+  const tr = months.map(x => monthSummary(x.key));
+  if (chart2) chart2.destroy();
+  chart2 = new Chart($('#ch2'), {type:'bar',
+    data:{labels:months.map(x => x.label), datasets:[
+      {label:'Entrate', data:tr.map(x => x.inc), backgroundColor:'#29FFC2', borderRadius:4},
+      {label:'Uscite', data:tr.map(x => x.spese), backgroundColor:'#f59e0b', borderRadius:4},
+      {label:'Risparmio', type:'line', data:tr.map(x => x.risp), borderColor:'#818cf8', backgroundColor:'#818cf8', tension:.3, pointRadius:3}]},
+    options:{maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:c => `${c.dataset.label}: ${eur(c.parsed.y)}`}}},
+      scales:{x:{grid:{display:false}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => Math.abs(v) >= 1000 ? (v/1000) + 'k' : v}}}}});
 }
 
 /* ===================== TAB 4 · PATRIMONIO & CALENDARIO (segnaposto) ===================== */

@@ -4,7 +4,7 @@
 > leggi questo file prima di toccare il codice e **aggiornalo ogni volta che cambi qualcosa**
 > (vedi «Registro modifiche» in fondo). Così chi arriva dopo sa cosa è stato fatto e perché.
 
-Ultimo aggiornamento di questo file: 2026-11-14 (Claude, dopo la revisione del lavoro di ChatGPT/Codex).
+Ultimo aggiornamento di questo file: 2026-11-16 (Claude: versione 2.7 e decisioni sulle prossime fasi).
 
 ---
 
@@ -201,17 +201,28 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 | 2.0+ | Ritorno a Supabase con login, scritture ottimistiche, sincronizzazione, importazione dati locali |
 | 2.1–2.4 | Libreria Supabase 2.109.0, messaggi di errore in italiano, email di conferma con reinvio, riga di diagnostica, barra errori, controllo campi, testo «Caricamento…» |
 | 2.6 | Correzione di «Riconcilia saldo»: la rettifica ora usa la categoria «Rettifica saldo» (il vincolo `transactions_category_required` rifiutava le rettifiche senza categoria). Controllata con un test automatico in modalità demo (dashboard, riconciliazione, form, analisi, selettore emoji: nessun errore JS); **non provata con Supabase reale** |
+| 2.7 | Reinserito nell'Analisi il grafico **Andamento ultimi 6 mesi** (barre Entrate e Uscite nette + linea Risparmio, fino al mese selezionato; rettifiche escluse, rimborsi sottratti alle uscite). Provata con test automatico in modalità demo; **non provata con Supabase reale** |
 | 2.5 | Modifica/eliminazione di movimenti, conti e categorie; Analisi per categoria e budget mensile; selezione colore dal quadratino; menu «Necessità» / «Casuale»; selettore emoji a pulsante quadrato; email e stato sincronizzazione nella sidebar. Commit presenti su `main`; non provata in browser. |
 
-## 11. Da fare
-- Scheda **Patrimonio**: fotografia di fine mese e ripartizione liquidità/investimenti.
-- **Calendario**: scadenze e movimenti ricorrenti.
-- **Investimenti**: operazioni, quote, prezzi, commissioni e valore attuale.
-- **Budget 50/30/20**, obiettivi/accantonamenti, autonomia finanziaria e calcolatore debiti.
-- Valutare un riepilogo AI su dati aggregati e collegamenti bancari tramite un fornitore autorizzato, con consenso esplicito.
-- Miglioramento della grafica.
-- Esportazione/importazione dei dati (file JSON) e copie di sicurezza.
-- Pubblicazione automatica (Claude Code o GitHub) per non dover ricaricare `index.html` a mano.
+## 11. Da fare (decisioni prese con l'utente il 2026-11-16)
+L'utente vuole procedere **un passo alla volta**, senza implementare tutto insieme. Ordine concordato:
+
+1. ✅ **Grafico andamento 6 mesi** in Analisi (fatto, v2.7).
+2. **Scheda Patrimonio** (sostituisce il segnaposto «Patrimonio & Calendario»):
+   - grafico **a linea mensile**, **ricalcolato dai movimenti** (saldo iniziale + movimenti fino a fine mese): nessun compito automatico sul server;
+   - mostrare **liquidità** (cash + savings + carte) e **capitale investito**; **niente plusvalenze** (non sono garantite finché non ritirate): per i conti `investment` si conta solo quanto è stato versato (trasferimenti in entrata/uscita), si **nasconde «Riconcilia saldo»** su quei conti e si escludono dal grafico le eventuali rettifiche su di essi;
+   - importi **discreti**: valori esatti al tocco, etichette solo su primo/ultimo/minimo/massimo, riga di mesi scorrevole in grigio con variazione sul mese prima, tasto «Mostra valori» per l'elenco completo.
+3. **Budget personalizzabile**: modello 50/30/20 come punto di partenza, ma l'utente sceglie le tre percentuali (Necessità / Casuale / Risparmio). Confronto con i mesi reali («sei al 62/25/13»), **senza AI**. Servirà una piccola tabella per le impostazioni (con RLS).
+4. **Scheda Obiettivi** (diventa la 5ª scheda; nome provvisorio, il Calendario potrà entrarci in futuro):
+   - ogni obiettivo ha nome, importo da raggiungere e un **grafico a torta che si riempie**;
+   - modello **accantonamento**: i soldi restano sui conti veri, l'obiettivo è una quota messa da parte; «Aggiungi» e «Preleva» con storico, «Usa fondi» registra la spesa vera in Transazioni e scala l'obiettivo; **avviso** se la somma degli obiettivi supera la liquidità;
+   - tabelle previste: `goals` e `goal_entries`, con RLS;
+   - *da confermare con l'utente*: accantonamento (proposto) oppure obiettivo legato a un conto dedicato.
+
+**Rimandati** (non fare senza richiesta dell'utente): consiglio AI sulla ripartizione, riepilogo con commento AI, **Calendario** (solo mese corrente, con tabella di ricorrenze), **calcolatore debiti** (l'utente deve ancora decidere com'è la pagina), foto automatiche di fine mese con `pg_cron`, sezione Investimenti con operazioni/prezzi, collegamenti bancari.
+
+**Altro**: miglioramento grafica; esportazione/importazione JSON; pubblicazione automatica (Claude Code o GitHub);
+**dividere `index.html` in più file più avanti** (con Claude Code): oggi non è un problema (il file è piccolo), serve per la manutenzione e per evitare che più AI sovrascrivano lo stesso file.
 
 ## 12. Come aggiornare questo file
 Dopo ogni modifica aggiungi una riga al registro qui sotto (la più recente in alto) e, se serve, aggiorna le sezioni sopra
@@ -221,5 +232,6 @@ perché serve a capire a colpo d'occhio quale versione è davvero online.
 ### Registro modifiche
 | Data | Chi | Versione | Cosa è stato fatto | Note / da verificare |
 |---|---|---|---|---|
+| 2026-11-16 | Claude | 2.7 | Grafico «Andamento ultimi 6 mesi» in Analisi (funzione `monthSummary`, variabile `chart2`). Basato sul `index.html` 2.6 (Codex + fix riconciliazione). | Se nel frattempo `index.html` è cambiato con altri strumenti, confrontare prima di sovrascrivere |
 | 2026-11-14 | Claude | 2.6 | Revisione del `index.html` di Codex (sintassi ok). Fix «Riconcilia saldo» con categoria «Rettifica saldo». Il resto del codice di Codex è invariato. | Provare con Supabase reale: riconcilia un conto e controlla che la rettifica compaia nei movimenti ma non nei KPI. La categoria «Rettifica saldo» compare nell'elenco categorie e nei menu: è voluto, non eliminarla finché ci sono rettifiche. Il grafico dell'andamento mensile (presente nella mia 2.5) resta rimosso |
 | 2026-11-14 | ChatGPT/Codex | 2.5 | RLS verifica categoria proprietaria; categoria resa obbligatoria per movimenti non trasferimenti; UI con messaggio dedicato; modifica/eliminazione per movimenti, conti e categorie; analisi per categoria e budget; menu categorie sopra i movimenti; emoji a pulsante, menu Necessità/Casuale, colore da quadratino; email in sidebar; rimosso grafico andamento mensile. | Modifiche su `main`; nessun test browser. Una rettifica di saldo senza categoria è incompatibile col nuovo vincolo e va corretta. |
