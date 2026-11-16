@@ -47,7 +47,10 @@
     <svg class="h-10 w-10 shrink-0" viewBox="0 0 48 48" role="img" aria-label="Logo Hub Finanza">
       <defs><filter id="logoGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
       <rect x="2" y="2" width="44" height="44" rx="15" fill="#080b05" stroke="#a3e635" stroke-opacity=".24"/>
-      <text x="24" y="34" text-anchor="middle" font-family="Comfortaa, sans-serif" font-size="30" font-weight="700" fill="#a3e635" filter="url(#logoGlow)">€</text>
+      <g fill="none" stroke="#a3e635" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" filter="url(#logoGlow)">
+        <path d="M35 10.8a17.5 17.5 0 0 0-25 6.8H6.5l-1.2 3.2h3.5a15 15 0 0 0 0 3.2H6.5l-1.2 3.2h4.7A17.5 17.5 0 0 0 35 34.8"/>
+        <path d="M31.5 14.2h-9.4a8.3 8.3 0 0 0-7.3 4.6h13.5l-1.5 3.2H13.7a9 9 0 0 0 0 3.2h11.6l-1.5 3.2h-9A8.3 8.3 0 0 0 22.1 33h9.4"/>
+      </g>
     </svg>
     <span class="text-base font-semibold tracking-tight">Hub Finanza</span>
   </div>
@@ -62,7 +65,7 @@
 
 <!-- Tasto flottante + -->
 <button id="fab" onclick="txForm('expense')" aria-label="Nuova transazione"
-  class="fixed h-14 w-14 rounded-full bg-mint text-bg text-3xl font-light shadow-[0_8px_24px_rgba(41,255,194,.35)] hover:brightness-110">+</button>
+  class="fixed h-14 w-14 rounded-full bg-mint text-bg text-3xl font-light shadow-[0_8px_24px_rgba(163,230,53,.35)] hover:brightness-110">+</button>
 
 <div id="modal" class="hidden fixed inset-0 z-50 bg-black/70 items-end md:items-center justify-center"></div>
 <div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[60] rounded-xl bg-mint text-bg font-medium text-sm px-4 py-2"></div>
