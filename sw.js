@@ -1,8 +1,8 @@
 // Service worker minimale: network-first con fallback sulla cache (l'app si apre anche offline)
-const C = 'hub-finanza-v1';
+const C = 'finance-app-v2';
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'manifest.webmanifest']).catch(() => {})));
+  e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'manifest.webmanifest', 'finance-app-icon-192.jpg', 'finance-app-icon-512.jpg', 'apple-touch-icon.png']).catch(() => {})));
 });
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {

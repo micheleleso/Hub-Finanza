@@ -1,10 +1,10 @@
-# Hub Finanza — documentazione di progetto
+# Finance App — documentazione di progetto
 
 > **Per chi lavora su questo progetto (persone o AI: Claude, ChatGPT/Codex, altri):**
 > leggi questo file prima di toccare il codice e **aggiornalo ogni volta che cambi qualcosa**
 > (vedi «Registro modifiche» in fondo). Così chi arriva dopo sa cosa è stato fatto e perché.
 
-Ultimo aggiornamento di questo file: 2026-11-16 (ChatGPT/Codex: versione 3.3, rinnovamento grafico).
+Ultimo aggiornamento di questo file: 2026-11-16 (ChatGPT/Codex: versione 3.4, logo e icone vettoriali).
 
 ---
 
@@ -25,7 +25,6 @@ Interfaccia e messaggi sono **in italiano**.
 | Libreria | Versione | Note |
 |---|---|---|
 | Tailwind CSS (Play CDN) | `cdn.tailwindcss.com` | colori custom in `tailwind.config`: nero `bg`, antracite `surf`, lime `mint` |
-| Google Fonts (Comfortaa) | API Google Fonts | pesi 400, 500, 600, 700; caricamento CSS esterno |
 | Chart.js | 4.4.1 (jsdelivr) | ciambella Necessità/Casuale nell'Analisi |
 | @supabase/supabase-js | 2.109.0 (jsdelivr, UMD) | **serve una versione recente**: la 2.45.4 usata all'inizio è troppo vecchia per le chiavi `sb_publishable_…` |
 
@@ -33,7 +32,8 @@ Interfaccia e messaggi sono **in italiano**.
 | File | Scopo |
 |---|---|
 | `index.html` | **Tutta l'app** (HTML + CSS + JS inline) |
-| `manifest.webmanifest` | Manifest PWA (tema scuro, icona SVG incorporata) |
+| `manifest.webmanifest` | Manifest PWA (nome e icone dell'app) |
+| `finance-app-icon-192.jpg`, `finance-app-icon-512.jpg`, `apple-touch-icon.png` | Logo fornito, ritagliato per sidebar, installazione PWA e Home iOS |
 | `sw.js` | Service worker minimo: network-first con fallback sulla cache; non mette in cache le chiamate a Supabase |
 | `schema.sql` | Schema del database da eseguire nell'SQL Editor di Supabase (riportato anche al §6) |
 | `migration_budget.sql` | Script da eseguire **una volta** su Supabase per creare la tabella `budget_settings` (budget mensile personalizzabile) |
@@ -55,7 +55,7 @@ Tutte le tabelle hanno **RLS attiva**: ogni utente vede e modifica solo le righe
 
 ```sql
 -- =====================================================================
--- HUB FINANZA PERSONALE - Fase 1
+-- FINANCE APP - Fase 1
 -- Incolla tutto nel SQL Editor di Supabase ed esegui (Run).
 -- Ogni utente vede e modifica SOLO i propri dati (Row Level Security).
 -- =====================================================================
@@ -178,7 +178,7 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 - `importLocal()`: importa nel database i dati salvati in localStorage (con nuovi id).
 
 **Interfaccia**
-- Schede: **Dashboard**, **Transazioni**, **Analisi**, **Patrimonio** e **Obiettivi**. La sidebar desktop mostra il logo euro lime e il nome Hub Finanza.
+- Schede: **Dashboard**, **Transazioni**, **Analisi**, **Patrimonio** e **Obiettivi**. La sidebar desktop e la schermata di accesso mostrano il logo fornito e il nome Finance App.
 - `render()` ridisegna la scheda corrente; `modal()` / `closeModal()` per i pannelli; `dateSel()` crea i due menu **Mese + Anno** (mese in italiano, «Tutti i mesi» solo in Transazioni).
 - Tutto il testo inserito dall'utente passa da `esc()` (protezione dall'HTML iniettato).
 - Errori JavaScript visibili in una barra rossa (`showFatal`); sulla schermata di accesso una riga verifica il collegamento a Supabase e mostra la versione (`APP_VERSION`).
@@ -186,9 +186,9 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 **Dashboard**: 4 card riepilogative, conti con «Riconcilia saldo», modifica/eliminazione, riepilogo rapido degli obiettivi (totale accantonato, liquidità libera e avanzamento dei primi 3 obiettivi; collegamento alla scheda Obiettivi), ultimi 5 movimenti.
 **Transazioni**: pulsante flottante  (Entrata, Uscita, Trasferimento, Rimborso), lista filtrabile e modificabile/eliminabile. Il menu «Gestisci categorie» è sopra la lista; da lì si vedono, creano, modificano ed eliminano categorie. Conti e categorie sono indipendenti.
 **Analisi**: KPI del mese/anno selezionati, entrate e uscite nette per categoria, confronto dei budget mensili e ciambella Necessità/Casuale. Il tasso di risparmio è mensile; non c'è un grafico di andamento annuale.
-**Moduli**: modifica/eliminazione di conti, categorie e movimenti; non si eliminano conti o categorie ancora usati. Le uscite hanno menu «Necessità» / «Casuale». Selezione emoji con pulsante quadrato e pannello interno; il colore si seleziona dal quadratino.
+**Moduli**: modifica/eliminazione di conti, categorie e movimenti; non si eliminano conti o categorie ancora usati. Le uscite hanno menu «Necessità» / «Casuale». Selettori di categoria e obiettivi con icone SVG lineari; le vecchie emoji già salvate sono convertite in icone alla visualizzazione e non richiedono migrazioni. Il colore si seleziona dal quadratino.
 
-**Stile (v3.3)**: font Comfortaa da Google Fonts; sfondo nero con bagliori radiali lime, pannelli traslucidi e bordi arrotondati. Le cinque schede usano icone SVG inline per persona, portafoglio, torta, grafico in crescita e appunti; il logo euro lime SVG è nella sidebar desktop. L'icona del manifest PWA non è stata modificata.
+**Stile (v3.4)**: font precedente ripristinato (Inter con fallback di sistema); sfondo nero con bagliori lime, pannelli traslucidi e bordi arrotondati. Le icone di schede, categorie e obiettivi sono SVG lineari. Il logo allegato è usato nella sidebar desktop, nella schermata di accesso e come icona PWA; per iOS è indicato come `apple-touch-icon.png`. Nome visualizzato: Finance App.
 
 ## 8. Pubblicazione
 - Ospitata su **GitHub Pages** (repo pubblico, ramo `main`, cartella radice). Indirizzo del tipo `https://UTENTE.github.io/hub-finanza/`.
@@ -217,6 +217,7 @@ KPI di Analisi: *Uscite nette* = uscite − rimborsi; *Risparmio* = entrate − 
 | 2.8 | Grafico andamento reso più leggibile (su richiesta dell'utente, «opzione C»): **una sola linea** (risparmio mensile) con il mese selezionato evidenziato, legenda tolta, tooltip con risparmio/entrate/uscite/tasso, e **tabella compatta** sotto (mese, entrate, uscite, risparmio, tasso). Sempre **6 mesi** terminanti nel mese selezionato, anche se vuoti. Test automatico in modalità demo ok; non provata con Supabase reale |
 | 2.9 | **Scheda Patrimonio** (al posto del segnaposto «Patrimonio & Calendario»; icona 📈): card Patrimonio/Liquidità/Investito, barra di composizione, grafico a linea a fine mese con scelta della serie (Totale/Liquidità/Investito) e dell'intervallo (6/12/24 mesi), etichette solo su primo/ultimo/minimo/massimo, tabella «Mostra valori» chiusa di default. Storico **ricalcolato dai movimenti** (`balanceAt`, `wealthSeries`), parte dal primo mese con dati. **Investimenti = solo capitale versato**: le rettifiche sui conti `investment` sono ignorate nei saldi e «Riconcilia saldo» è nascosto/bloccato su quei conti. Test automatico in modalità demo con dati su più mesi ok; non provata con Supabase reale |
 | 3.0 | **Budget mensile personalizzabile** (stile 50/30/20) nell'Analisi: card «Budget del mese» dopo i KPI con tre righe (Necessità, Casuale, Risparmio), obiettivo % e valore reale, barre, «Ti restano / Superato di / Mancano»; modulo «Modifica» con preset (50/30/20, 60/20/20, 70/20/10, 80/10/10), tre percentuali libere che devono fare 100 e **entrata mensile prevista** facoltativa (se vuota si usano le entrate reali del mese). Salvataggio nella nuova tabella `budget_settings` (una riga per utente, RLS; script `migration_budget.sql`). Se la tabella non esiste l'app funziona lo stesso ma il budget non si salva. La card per categoria è stata rinominata «Budget per categoria». Test automatico in modalità demo ok; non provata con Supabase reale |
+| 3.4 | Nome aggiornato in Finance App; logo fornito usato nell'interfaccia, nel manifest PWA e come icona Home iOS; sostituite le emoji visibili con icone SVG lineari per navigazione, categorie e obiettivi; font Comfortaa rimosso e font precedente ripristinato. | Le icone legacy salvate in Supabase sono mappate in visualizzazione; nessuna migrazione DB |
 | 3.3 | Restyling grafico: font Comfortaa, nero puro con bagliori lime, pannelli traslucidi e bordi arrotondati; icone SVG inline per le cinque schede e logo euro lime accanto al nome nella sidebar desktop. Accento aggiornato a `#a3e635`. | Il font viene caricato da Google Fonts; icona del manifest PWA invariata |
 | 3.2 | Dashboard: riepilogo rapido degli obiettivi con totale accantonato, liquidità libera, barre di avanzamento dei primi 3 obiettivi e collegamento alla scheda. Se le tabelle opzionali non sono configurate, mostra un collegamento alla configurazione. | Nessuna modifica al database; non provata con Supabase reale |
 | 3.1 | **Scheda Obiettivi** (5ª scheda, icona 🎯; la barra mobile passa a 5 colonne): obiettivi decisi dall'utente (nome, importo, icona, colore, scadenza facoltativa, importo già messo da parte) con **grafico a torta** che si riempie e si svuota e % al centro. Modello **accantonamento**: i soldi restano sui conti veri, messo da parte = somma dei movimenti dell'obiettivo (+ versamenti, − prelievi/spese). Azioni: **Aggiungi**, **Preleva**, **Usa fondi** (registra una spesa vera in Transazioni con tag `obiettivo` e scala dall'obiettivo la stessa cifra, al massimo quanto accantonato), storico con eliminazione movimenti, modifica/eliminazione obiettivo. In alto: messo da parte / liquidità / libera e **avviso rosso** se gli obiettivi superano la liquidità; rata mensile consigliata se c'è una scadenza; suggerimento 3-6 mesi di spese di Necessità per il fondo di emergenza. Tabelle `goals` e `goal_entries` (script `migration_goals.sql`); se mancano l'app funziona e la scheda spiega cosa fare. Test automatico in modalità demo ok; non provata con Supabase reale |
@@ -251,6 +252,7 @@ perché serve a capire a colpo d'occhio quale versione è davvero online.
 ### Registro modifiche
 | Data | Chi | Versione | Cosa è stato fatto | Note / da verificare |
 |---|---|---|---|---|
+| 2026-11-16 | ChatGPT/Codex | 3.4 | Nome Finance App in interfaccia e PWA; logo fornito ritagliato e usato in sidebar/login, manifest e Home iOS; emoji visibili sostituite da icone SVG coerenti per categorie, movimenti, analisi e obiettivi; font Inter ripristinato. | Nessuna migrazione Supabase; i vecchi valori emoji sono gestiti dalla mappatura compatibile |
 | 2026-11-16 | ChatGPT/Codex | 3.3 | Restyling: Comfortaa, palette nero e lime con sfondo a bagliori, pannelli traslucidi e bordi arrotondati, icone SVG per navigazione e logo euro lime nella sidebar desktop. | Icona del manifest PWA invariata; font caricato da Google Fonts |
 | 2026-11-16 | ChatGPT/Codex | 3.2 | Dashboard: aggiunto riepilogo degli obiettivi con totale accantonato, liquidità libera e avanzamento dei primi 3; pulsante per aprire la scheda Obiettivi. In assenza delle tabelle mostra un collegamento alla configurazione. | Nessuna modifica al database; non provata con Supabase reale |
 | 2026-11-16 | Claude | 3.1 | Scheda Obiettivi. Nuovi: `viewGoals`, `goalCard`, `goalForm`, `goalHint`, `removeGoal`, `moneyForm`, `spendForm`, `goalDetail`, `delEntry`, `goalSaved`, `liquidity`, `allocated`, `avgNeeds`, plugin `centerText`, `GOAL_PRESETS`, `GOAL_ICONS`, `S.goals`, `S.goal_entries`, `goalsReady`; `TABS`/`render`/`botnav` a 5 schede; `load()` legge `goals` e `goal_entries` (errore ignorato se le tabelle mancano). Nuovo file `migration_goals.sql`. | **L'utente deve eseguire `migration_goals.sql` su Supabase**. «Liquidità» = conti cash+savings+carte (`LIQ_TYPES`). Le torte sono Chart.js `doughnut`, una per obiettivo, distrutte a ogni `viewGoals` |

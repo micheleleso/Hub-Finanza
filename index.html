@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Hub Finanza</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Finance App</title>
+<link rel="icon" href="finance-app-icon-192.jpg" type="image/jpeg">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Finance App">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   // Palette Hub: nero profondo, superfici antracite e accento lime
@@ -19,7 +19,7 @@
 <style>
   :root{color-scheme:dark}
   html{background:#000}
-  body{font-family:"Comfortaa",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;background-color:#000;background-image:radial-gradient(ellipse 42rem 28rem at 16% 8%,rgba(132,204,22,.12),transparent 70%),radial-gradient(ellipse 36rem 32rem at 90% 46%,rgba(163,230,53,.065),transparent 72%);background-attachment:fixed}
+  body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent;background-color:#000;background-image:radial-gradient(ellipse 42rem 28rem at 16% 8%,rgba(132,204,22,.12),transparent 70%),radial-gradient(ellipse 36rem 32rem at 90% 46%,rgba(163,230,53,.065),transparent 72%);background-attachment:fixed}
   .tabular{font-variant-numeric:tabular-nums}
   body .bg-surf{background-color:rgba(255,255,255,.035);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
   /* Barra mobile: fissa in basso, con area sicura (notch / barra gesti) */
@@ -33,7 +33,7 @@
     #fab{right:2rem;bottom:2rem}
   }
   ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#1e293b;border-radius:8px}
-  #emoji-panel:not(.hidden){display:grid}
+  #icon-panel:not(.hidden){display:grid}
 </style>
 </head>
 <body class="bg-bg text-slate-100">
@@ -44,15 +44,8 @@
 <!-- Sidebar desktop -->
 <aside class="hidden md:flex fixed inset-y-0 left-0 w-60 flex-col border-r border-white/10 bg-black/65 backdrop-blur-xl p-4 z-20">
   <div class="flex items-center gap-3 mb-8 px-1">
-    <svg class="h-10 w-10 shrink-0" viewBox="0 0 48 48" role="img" aria-label="Logo Hub Finanza">
-      <defs><filter id="logoGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-      <rect x="2" y="2" width="44" height="44" rx="15" fill="#080b05" stroke="#a3e635" stroke-opacity=".24"/>
-      <g fill="none" stroke="#a3e635" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" filter="url(#logoGlow)">
-        <path d="M35 10.8a17.5 17.5 0 0 0-25 6.8H6.5l-1.2 3.2h3.5a15 15 0 0 0 0 3.2H6.5l-1.2 3.2h4.7A17.5 17.5 0 0 0 35 34.8"/>
-        <path d="M31.5 14.2h-9.4a8.3 8.3 0 0 0-7.3 4.6h13.5l-1.5 3.2H13.7a9 9 0 0 0 0 3.2h11.6l-1.5 3.2h-9A8.3 8.3 0 0 0 22.1 33h9.4"/>
-      </g>
-    </svg>
-    <span class="text-base font-semibold tracking-tight">Hub Finanza</span>
+    <img src="finance-app-icon-192.jpg" alt="" class="h-10 w-10 shrink-0 rounded-xl object-cover">
+    <span class="text-base font-semibold tracking-tight">Finance App</span>
   </div>
   <nav id="sidenav" class="space-y-1"></nav>
   <div id="sidefoot" class="mt-auto text-xs text-slate-500 leading-relaxed"></div>
@@ -80,7 +73,7 @@ const SUPABASE_URL = 'https://ddfeeqybmxladzunkpbg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_F3q51ck3EEkWZ8dfPHiyWg_HkwpiRBW';
 const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 let sb;
-const APP_VERSION = '3.3';
+const APP_VERSION = '3.4';
 // Qualsiasi errore di JavaScript viene mostrato in una barra rossa (niente più pagina muta)
 function showFatal(m){
   let b = document.getElementById('fatal');
@@ -106,8 +99,60 @@ const NAV_ICONS = {
   growth:'<path d="M4 20h17M5 18v-3h3v3M10 18v-6h3v6M15 18V8h3v10"/><path d="m6 11 5-4 3 1 5-5m-4 0h4v4"/>',
   clipboard:'<rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9 4.5v-1A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5v1M8.5 10h7M8.5 14h7M8.5 18h4"/>'
 };
-const navIcon = (key,size='h-5 w-5') => '<svg class="'+size+' shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(NAV_ICONS[key]||'')+'</svg>';
-const TYPE_LBL = {income:'Entrata', expense:'Uscita', transfer:'Trasferimento', refund:'Rimborso'};
+const ICON_PATHS = {...NAV_ICONS,
+ tag:'<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V4h9l8.6 8.6a.6.6 0 0 1 0 .8Z"/><circle cx="7.5" cy="8.5" r="1"/>',
+ coins:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v4c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 10v4c0 1.7 3.1 3 7 3 1.1 0 2.1-.1 3-.3M5 14v4c0 1.7 3.1 3 7 3"/>',
+ briefcase:'<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/>',
+ cart:'<path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/>',
+ home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+ bus:'<rect x="4" y="3" width="16" height="17" rx="3"/><path d="M4 12h16M8 7h8M7 20v1M17 20v1"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/>',
+ food:'<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4a8 8 0 0 1 0 16M7 7l10 10"/>',
+ clapper:'<path d="M4 8h16v12H4zM4 8l-1-4 16-2 1 4M8 7l3-4M14 6l3-4"/>',
+ health:'<path d="M12 3v18M3 12h18"/>',
+ car:'<path d="m5 11 1.5-5h11L19 11l2 2v5h-2M3 18v-5l2-2M3 14h18M7 18h10"/><circle cx="7" cy="17" r="1.5"/><circle cx="17" cy="17" r="1.5"/>',
+ coffee:'<path d="M5 8h12v8a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4zM17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 3v2M12 3v2"/>',
+ gift:'<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M2 6h20v4H2zM12 6v15M12 6H8.5a2 2 0 1 1 2-2c0 1.5 1.5 2 1.5 2Zm0 0h3.5a2 2 0 1 0-2-2c0 1.5-1.5 2-1.5 2Z"/>',
+ plane:'<path d="m3 11 18-8-6 18-3-7-9-3Z"/><path d="m12 14 4-4"/>',
+ paw:'<ellipse cx="12" cy="16" rx="5.5" ry="4"/><circle cx="5.5" cy="10" r="1.7"/><circle cx="9.5" cy="6.5" r="1.7"/><circle cx="14.5" cy="6.5" r="1.7"/><circle cx="18.5" cy="10" r="1.7"/>',
+ book:'<path d="M12 7v14M12 7C9 4 5 4 3 5v14c3-1 6-1 9 2M12 7c3-3 7-3 9-2v14c-3-1-6-1-9 2"/>',
+ gamepad:'<path d="M6 8h12a4 4 0 0 1 3.8 5l-1.2 4a2 2 0 0 1-3.4 1l-2-2H8.8l-2 2a2 2 0 0 1-3.4-1l-1.2-4A4 4 0 0 1 6 8Z"/><path d="M7 11v4M5 13h4M16 12h.1M18 14h.1"/>',
+ receipt:'<path d="M5 3h14v18l-3-2-4 2-4-2-3 2zM8 8h8M8 12h8M8 16h4"/>',
+ shoppingBag:'<path d="M4 8h16l1 13H3zM8 8a4 4 0 0 1 8 0"/>',
+ bulb:'<path d="M9 18h6M10 21h4M8.5 15.5a7 7 0 1 1 7 0c-.8.6-1.2 1.4-1.3 2.5H9.8c-.1-1.1-.5-1.9-1.3-2.5Z"/>',
+ fitness:'<path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/>',
+ music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+ shirt:'<path d="m8 4 4 2 4-2 5 3-2 5-3-1v10H8V11l-3 1-2-5z"/>',
+ broom:'<path d="m15 3 2 2-8 9-2-2zM7 13 4 20h13l-3-7"/>',
+ phone:'<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 5h4M11 19h2"/>',
+ card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
+ bank:'<path d="m3 9 9-6 9 6M4 10h16M5 10v9M9 10v9M15 10v9M19 10v9M3 20h18"/>',
+ leaf:'<path d="M20 4C9 4 4 8 4 15a5 5 0 0 0 5 5c7 0 11-6 11-16Z"/><path d="M4 20c3-5 7-8 12-11"/>',
+ heart:'<path d="M20.8 8.7c0 5.2-8.8 11-8.8 11s-8.8-5.8-8.8-11a4.7 4.7 0 0 1 8.8-2.4 4.7 4.7 0 0 1 8.8 2.4Z"/>',
+ star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>',
+ graduation:'<path d="m2 9 10-5 10 5-10 5zM6 11v5c4 3 8 3 12 0v-5M22 9v6"/>',
+ wrench:'<path d="M14 6a6 6 0 0 0-7.5 7.5L3 17a2.1 2.1 0 0 0 3 3l3.5-3.5A6 6 0 0 0 17 9l-4 4-3-3z"/>',
+ scale:'<path d="M12 3v18M5 6h14M7 6l-4 7h8zM17 6l-4 7h8zM8 21h8"/>',
+ transfer:'<path d="M4 7h15l-3-3M20 17H5l3 3"/>',
+ refund:'<circle cx="12" cy="12" r="8.5"/><path d="M8 10h6a2 2 0 0 1 0 4h-4m0 0 2-2m-2 2 2 2M12 5v2"/>',
+ target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+ lifeRing:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><path d="m5.6 5.6 4.1 4.1m4.6 4.6 4.1 4.1m0-12.8-4.1 4.1m-4.6 4.6-4.1 4.1"/>',
+ beach:'<path d="M3 21 13 7M6 21h15M4 8a8 8 0 0 1 15.5 0zM12 8h8"/>',
+ ring:'<circle cx="12" cy="14" r="7"/><path d="m9 6 3-3 3 3-3 2z"/>',
+ laptop:'<rect x="5" y="4" width="14" height="12" rx="1"/><path d="M2 20h20l-2-4H4z"/>',
+ tree:'<path d="m12 3 5 6h-3l5 6h-4l5 6H4l5-6H5l5-6H7zM12 21v-4"/>',
+ dog:'<path d="M7 10 4 7 2 9l2 5v5h11v-4l3 2 3-3-3-2v-4l-4-2-3 2zM8 13h.1M14 13h.1M9 19v2M15 19v2"/>',
+ success:'<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 9"/>',
+ smile:'<circle cx="12" cy="12" r="9"/><path d="M8 14s1.3 2 4 2 4-2 4-2M9 9h.1M15 9h.1"/>'
+};
+const LEGACY_ICON_MAP = Object.fromEntries([
+[[0x1f3f7],'tag'],[[0x1f4b0],'coins'],[[0x1f4bc],'briefcase'],[[0x1f6d2],'cart'],[[0x1f3e0],'home'],[[0x1f68c],'bus'],[[0x1f355],'food'],[[0x1f3ac],'clapper'],[[0x1f48a],'health'],[[0x1f697],'car'],[[0x2615],'coffee'],[[0x1f381],'gift'],[[0x2708],'plane'],[[0x1f43e],'paw'],[[0x1f4da],'book'],[[0x1f3ae],'gamepad'],[[0x1f9fe],'receipt'],[[0x1f6cd],'shoppingBag'],[[0x1f4a1],'bulb'],[[0x1f3cb],'fitness'],[[0x1f37d],'food'],[[0x1f3b5],'music'],[[0x1f455],'shirt'],[[0x1f9f9],'broom'],[[0x1f4f1],'phone'],[[0x1f4b3],'card'],[[0x1f3e6],'bank'],[[0x1f331],'leaf'],[[0x2764],'heart'],[[0x2b50],'star'],[[0x1f393],'graduation'],[[0x1f527],'wrench'],[[0x2696],'scale'],[[0x1f501],'transfer'],[[0x1f4b1],'refund'],[[0x1f3af],'target'],[[0x1f6df],'lifeRing'],[[0x1f3d6],'beach'],[[0x1f48d],'ring'],[[0x1f4bb],'laptop'],[[0x1f384],'tree'],[[0x1f436],'dog'],[[0x1f389],'success'],[[0x1f60a],'smile']
+].map(([cp,key])=>[String.fromCodePoint(...cp),key]));
+const iconKey=(value,fallback='tag')=>{const raw=String(value||''),clean=raw.split(String.fromCharCode(0xfe0f)).join('').split(String.fromCharCode(0xfe0e)).join('').split(String.fromCharCode(0x200d)).join('');return ICON_PATHS[raw]?raw:(LEGACY_ICON_MAP[clean]||fallback);};
+const iconSvg=(value,size='h-5 w-5')=>{const key=iconKey(value,'tag');return '<svg class="'+size+' shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICON_PATHS[key]||ICON_PATHS.tag)+'</svg>';};
+const SAFE_HEX=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?value:'#a3e635';
+const CATEGORY_ICONS=['tag','coins','briefcase','cart','home','bus','food','clapper','health','car','coffee','gift','plane','paw','book','gamepad','receipt','shoppingBag','bulb','fitness','music','shirt','broom','phone','card','bank','leaf','heart','star','graduation','wrench'];
+const ICON_NAMES={tag:'Etichetta',coins:'Denaro',briefcase:'Lavoro',cart:'Spesa',home:'Casa',bus:'Trasporti',food:'Pasto',clapper:'Svago',health:'Salute',car:'Auto',coffee:'Caffè',gift:'Regalo',plane:'Viaggio',paw:'Animali',book:'Libri',gamepad:'Videogiochi',receipt:'Ricevuta',shoppingBag:'Acquisti',bulb:'Utenze',fitness:'Sport',music:'Musica',shirt:'Abbigliamento',broom:'Casa',phone:'Telefono',card:'Carta',bank:'Banca',leaf:'Natura',heart:'Benessere',star:'Preferito',graduation:'Formazione',wrench:'Manutenzione',scale:'Bilancia',transfer:'Trasferimento',refund:'Rimborso',target:'Obiettivo',lifeRing:'Emergenza',beach:'Vacanza',ring:'Gioielli',laptop:'Tecnologia',tree:'Festività',dog:'Animali',success:'Completato',smile:'Generico'};
+const navIcon=(key,size='h-5 w-5')=>iconSvg(key,size);const TYPE_LBL = {income:'Entrata', expense:'Uscita', transfer:'Trasferimento', refund:'Rimborso'};
 const ACC_LBL = {cash:'Contanti', card:'Carta', savings:'Risparmio', investment:'Investimenti'};
 const CARD = 'bg-white/[0.045] backdrop-blur-xl rounded-3xl border border-white/[0.09] shadow-[0_8px_32px_rgba(132,204,22,0.035)] p-4';
 const IN = 'w-full rounded-2xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-mint focus:border-mint';
@@ -115,16 +160,15 @@ const B1 = 'rounded-2xl bg-mint text-bg px-4 py-2.5 text-sm font-semibold hover:
 const B2 = 'rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur px-3 py-2 text-xs font-medium text-slate-200 hover:border-mint/50 hover:bg-white/[0.07]';
 const SEG_ON = 'bg-surf text-mint border border-mint/40', SEG_OFF = 'text-slate-400 border border-transparent';
 const DEFAULT_CATS = [
-  {name:'Stipendio', type:'income',  icon:'💼', color:'#a3e635', monthly_budget:null},
-  {name:'Altre entrate', type:'income', icon:'💰', color:'#14b8a6', monthly_budget:null},
-  {name:'Spesa',     type:'expense', icon:'🛒', color:'#818cf8', monthly_budget:400},
-  {name:'Casa',      type:'expense', icon:'🏠', color:'#38bdf8', monthly_budget:null},
-  {name:'Trasporti', type:'expense', icon:'🚌', color:'#94a3b8', monthly_budget:80},
-  {name:'Ristoranti',type:'expense', icon:'🍕', color:'#f59e0b', monthly_budget:120},
-  {name:'Svago',     type:'expense', icon:'🎬', color:'#f472b6', monthly_budget:100},
-  {name:'Salute',    type:'expense', icon:'💊', color:'#f87171', monthly_budget:null},
+{name:'Stipendio',type:'income',icon:'briefcase',color:'#a3e635',monthly_budget:null},
+{name:'Altre entrate',type:'income',icon:'coins',color:'#14b8a6',monthly_budget:null},
+{name:'Spesa',type:'expense',icon:'cart',color:'#818cf8',monthly_budget:400},
+{name:'Casa',type:'expense',icon:'home',color:'#38bdf8',monthly_budget:null},
+{name:'Trasporti',type:'expense',icon:'bus',color:'#94a3b8',monthly_budget:80},
+{name:'Ristoranti',type:'expense',icon:'food',color:'#f59e0b',monthly_budget:120},
+{name:'Svago',type:'expense',icon:'clapper',color:'#f472b6',monthly_budget:100},
+{name:'Salute',type:'expense',icon:'health',color:'#f87171',monthly_budget:null},
 ];
-const EMOJIS = ['🏷️','💰','💼','🛒','🏠','🚌','🍕','🎬','💊','🚗','☕','🎁','✈️','🐾','📚','🎮','🧾','🛍️','💡','🏋️','🍽️','🎵','👕','🧹','📱','💳','🏦','🌱','❤️','⭐','🎓','🔧'];
 const $ = s => document.querySelector(s);
 const eur = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n||0);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -301,6 +345,7 @@ function dateSel(st, fn, allMonths){
 /* ===================== RIGA MOVIMENTO ===================== */
 function row(t, withActions){
   const c = cat(t.category_id), a = acc(t.account_id), b = acc(t.to_account_id);
+  const txIcon=iconKey(c?.icon||(t.type==='transfer'?'transfer':'refund'),t.type==='transfer'?'transfer':'refund'), iconColor=SAFE_HEX(c?.color);
   const sign = (t.type==='income'||t.type==='refund') ? 1 : t.type==='expense' ? -1 : 0;
   const col = sign>0 ? 'text-mint' : sign<0 ? 'text-slate-100' : 'text-slate-400';
   const badge = t.type==='expense'
@@ -308,7 +353,7 @@ function row(t, withActions){
                       : '<span class="rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/30 px-2 py-0.5 text-[10px] font-medium">Casuale</span>') : '';
   const tags = (t.tags||[]).map(x => `<span class="text-[10px] text-slate-500">#${esc(x)}</span>`).join(' ');
   return `<div class="flex items-center gap-3 p-3">
-    <div class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-lg" style="background:${c?.color||'#94a3b8'}26">${c?.icon || (t.type==='transfer'?'🔁':'💱')}</div>
+    <div class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center" style="background:${iconColor}26;color:${iconColor}">${iconSvg(txIcon,'h-5 w-5')}</div>
     <div class="min-w-0 flex-1">
       <div class="truncate text-sm font-medium">${esc(t.description || c?.name || TYPE_LBL[t.type])}</div>
       <div class="truncate text-xs text-slate-400">${esc(a?.name)}${b?' → '+esc(b.name):''} · ${esc(c?.name || TYPE_LBL[t.type])} · ${fmtDate(t.date)}</div>
@@ -348,7 +393,7 @@ function viewDash(){
       const goals = S.goals.slice(0,3).map(g => {
         const saved = goalSaved(g), target = +g.target_amount || 0;
         const pct = target > 0 ? Math.max(0, Math.min(100, saved / target * 100)) : 0;
-        return `<div><div class="flex items-center justify-between gap-3 text-sm"><span class="truncate">${esc(g.icon || '🎯')} ${esc(g.name)}</span><span class="tabular text-slate-400">${pct.toFixed(0)}%</span></div>
+        return `<div><div class="flex items-center justify-between gap-3 text-sm"><span class="truncate">${iconSvg(g.icon||'target','h-5 w-5')}<span class=\"truncate\">${esc(g.name)}</span></span><span class="tabular text-slate-400">${pct.toFixed(0)}%</span></div>
           <div class="mt-1 h-1.5 rounded-full bg-slate-800"><div class="h-1.5 rounded-full bg-mint" style="width:${pct}%"></div></div>
           <div class="mt-1 text-[11px] text-slate-500">${eur(saved)} di ${eur(target)}</div></div>`;
       }).join('');
@@ -389,7 +434,7 @@ function reconc(id){
     // si usa (o si crea) la categoria «Rettifica saldo» del tipo giusto. Le rettifiche restano escluse dai KPI (tag "rettifica").
     const ctype = diff > 0 ? 'income' : 'expense';
     let rc = S.categories.find(c => c.name === 'Rettifica saldo' && c.type === ctype);
-    if (!rc){ rc = {name:'Rettifica saldo', type:ctype, icon:'⚖️', color:'#64748b', monthly_budget:null}; ins('categories', rc); }
+    if (!rc){ rc = {name:'Rettifica saldo', type:ctype, icon:'scale', color:'#64748b', monthly_budget:null}; ins('categories', rc); }
     ins('transactions', {type:ctype, account_id:id, to_account_id:null, category_id:rc.id,
       amount:+Math.abs(diff).toFixed(2), is_necessary:null, date:today(), description:'Rettifica saldo', notes:null, tags:['rettifica']});
     closeModal(); render();
@@ -431,7 +476,7 @@ function renderList(){
 function renderCategories(){
   const el = $('#category-list'); if (!el) return;
   el.innerHTML = S.categories.map(c => `<div class="flex items-center gap-3 rounded-xl bg-bg border border-white/10 px-3 py-2">
-    <span class="text-lg">${esc(c.icon||'🏷️')}</span><div class="min-w-0 flex-1"><div class="truncate text-sm">${esc(c.name)}</div><div class="text-xs text-slate-500">${c.type==='income'?'Entrata':'Uscita'}${c.monthly_budget!==null?` · Budget ${eur(c.monthly_budget)}`:''}</div></div>
+    <span class="text-lg">${iconSvg(c.icon,'h-5 w-5')}</span><div class="min-w-0 flex-1"><div class="truncate text-sm">${esc(c.name)}</div><div class="text-xs text-slate-500">${c.type==='income'?'Entrata':'Uscita'}${c.monthly_budget!==null?` · Budget ${eur(c.monthly_budget)}`:''}</div></div>
     <button onclick="newItem('category','${c.id}')" class="text-xs text-mint hover:underline">Modifica</button><button onclick="removeItem('category','${c.id}')" class="text-xs text-slate-500 hover:text-red-400">Elimina</button></div>`).join('') || '<p class="text-sm text-slate-500">Nessuna categoria.</p>';
 }
 
@@ -442,7 +487,7 @@ function txForm(type = T, editId = null){
   const existing = editId ? S.transactions.find(t => t.id === editId) : null;
   EDIT_TX_ID = existing?.id || null;
   if (!S.accounts.length) return modal(`<p class="text-sm mb-3">Crea prima un conto.</p><button class="${B1}" onclick="newItem('account')">Nuovo conto</button>`);
-  const opt = (arr,selected) => arr.map(x => `<option value="${x.id}" ${x.id===selected?'selected':''}>${esc(x.icon||'')} ${esc(x.name)}</option>`).join('');
+  const opt = (arr,selected) => arr.map(x => `<option value="${x.id}" ${x.id===selected?'selected':''}>${esc(x.name)}</option>`).join('');
   const cats = S.categories.filter(c => c.type === (type==='income' ? 'income' : 'expense'));
   const tabs = [['income','Entrata'],['expense','Uscita'],['transfer','Trasf.'],['refund','Rimborso']];
   modal(`<div class="grid grid-cols-4 gap-1 rounded-xl bg-bg p-1 mb-4">${tabs.map(([k,l]) =>
@@ -480,11 +525,14 @@ function saveTx(e){
 }
 
 /* Nuovo conto / nuova categoria */
-function chooseEmoji(value){ $('#emoji-input').value=value; $('#emoji-button').textContent=value; $('#emoji-panel').classList.add('hidden'); }
-function openEmojiPicker(){ $('#emoji-panel').classList.remove('hidden'); }
-function emojiField(value){
-  return `<div class="space-y-2"><label class="block text-xs text-slate-400">Emoji</label><input id="emoji-input" name="icon" type="hidden" value="${esc(value||'')}"><button id="emoji-button" type="button" onclick="openEmojiPicker()" aria-label="Apri selettore emoji" class="h-12 w-12 rounded-xl border border-white/10 bg-bg text-2xl hover:border-mint/60">${esc(value||'😊')}</button>
-    <div id="emoji-panel" class="hidden grid-cols-8 gap-1 rounded-xl border border-white/10 bg-bg p-2">${EMOJIS.map(e=>`<button type="button" onclick="chooseEmoji('${e}')" class="rounded-lg p-2 text-xl hover:bg-slate-800" aria-label="${e}">${e}</button>`).join('')}</div></div>`;
+function chooseCategoryIcon(value){
+ const input=$('#category-icon-input'); if(!input)return; input.value=value; $('#category-icon-button').innerHTML=iconSvg(value,'h-6 w-6'); $('#icon-panel').classList.add('hidden');
+}
+function openIconPicker(){ $('#icon-panel').classList.toggle('hidden'); }
+function categoryIconField(value){
+ const current=iconKey(value,'tag');
+ const choices=CATEGORY_ICONS.map(k=>'<button type="button" onclick="chooseCategoryIcon(\''+k+'\')" class="flex h-9 w-9 items-center justify-center rounded-lg text-mint hover:bg-white/10" aria-label="Scegli icona '+ICON_NAMES[k]+'">'+iconSvg(k,'h-5 w-5')+'</button>').join('');
+ return '<div class="space-y-2"><label class="block text-xs text-slate-400">Icona</label><input id="category-icon-input" name="icon" type="hidden" value="'+current+'"><button id="category-icon-button" type="button" onclick="openIconPicker()" aria-label="Apri selettore icone" class="h-12 w-12 rounded-xl border border-white/10 bg-bg text-mint hover:border-mint/60">'+iconSvg(current,'h-6 w-6')+'</button><div id="icon-panel" class="hidden grid-cols-7 gap-1 rounded-xl border border-white/10 bg-bg p-2">'+choices+'</div></div>';
 }
 function newItem(kind = 'category', editId = null){
   const isAcc = kind === 'account';
@@ -496,7 +544,7 @@ function newItem(kind = 'category', editId = null){
     ${isAcc ? `<select name="type" class="${IN}">${Object.entries(ACC_LBL).map(([k,l]) => `<option value="${k}" ${item?.type===k?'selected':''}>${l}</option>`).join('')}</select>
       <input name="initial_balance" inputmode="decimal" value="${item?esc(item.initial_balance):''}" placeholder="Saldo iniziale (€)" class="${IN}">`
     : `<select name="type" class="${IN}"><option value="expense" ${item?.type==='expense'?'selected':''}>Uscita</option><option value="income" ${item?.type==='income'?'selected':''}>Entrata</option></select>
-      ${emojiField(item?.icon||'')}
+      ${categoryIconField(item?.icon||'tag')}
       <input name="monthly_budget" inputmode="decimal" value="${item?.monthly_budget!==null&&item?.monthly_budget!==undefined?esc(item.monthly_budget):''}" placeholder="Budget mensile (opzionale)" class="${IN}">`}
     <div class="flex items-center justify-between text-sm text-slate-400"><span>Colore</span><input type="color" name="color" value="${esc(item?.color||(isAcc?'#a3e635':'#818cf8'))}" class="h-9 w-14 rounded-lg border border-white/10 bg-bg cursor-pointer"></div>
     <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">${item?'Salva modifiche':'Crea'}</button></div></form>`);
@@ -505,7 +553,7 @@ function newItem(kind = 'category', editId = null){
     const f = new FormData(e.target);
     if (item && !isAcc && S.transactions.some(t=>t.category_id===item.id) && f.get('type')!==item.type) return toast('Non puoi cambiare il tipo di una categoria già usata');
     const r = isAcc ? {name:f.get('name'), type:f.get('type'), initial_balance:num(f.get('initial_balance'))||0, color:f.get('color')}
-                    : {name:f.get('name'), type:f.get('type'), icon:f.get('icon')||'🏷️', color:f.get('color'), monthly_budget:num(f.get('monthly_budget'))};
+                    : {name:f.get('name'), type:f.get('type'), icon:f.get('icon')||'tag', color:f.get('color'), monthly_budget:num(f.get('monthly_budget'))};
     if (item) upd(isAcc?'accounts':'categories',item.id,r); else ins(isAcc?'accounts':'categories', r);
     closeModal(); render();
   };
@@ -593,13 +641,13 @@ function viewAn(){
   const incomeRows = S.categories.filter(c=>c.type==='income').map(c=>({id:c.id,icon:c.icon,name:c.name,color:c.color,value:catTotal(c,'income')}));
   const expenseRows = S.categories.filter(c=>c.type==='expense').map(c=>({id:c.id,icon:c.icon,name:c.name,color:c.color,value:catTotal(c,'expense')-catTotal(c,'refund')}));
   const noCatIncome = sum(t=>t.type==='income'&&!t.category_id), noCatExpense = sum(t=>t.type==='expense'&&!t.category_id)-sum(t=>t.type==='refund'&&!t.category_id);
-  if (noCatIncome) incomeRows.push({icon:'🏷️',name:'Senza categoria',color:'#64748b',value:noCatIncome});
-  if (noCatExpense) expenseRows.push({icon:'🏷️',name:'Senza categoria',color:'#64748b',value:noCatExpense});
-  const catList = rows => rows.map(c=>`<div class="flex items-center gap-2 py-2 border-b border-white/10 last:border-0"><span class="h-2.5 w-2.5 rounded-full" style="background:${esc(c.color||'#64748b')}"></span><span class="text-sm flex-1 truncate">${esc(c.icon||'🏷️')} ${esc(c.name)}</span><span class="tabular text-sm font-medium">${eur(c.value)}</span></div>`).join('')||'<p class="text-sm text-slate-500">Nessuna categoria.</p>';
+  if (noCatIncome) incomeRows.push({icon:'tag',name:'Senza categoria',color:'#64748b',value:noCatIncome});
+  if (noCatExpense) expenseRows.push({icon:'tag',name:'Senza categoria',color:'#64748b',value:noCatExpense});
+  const catList = rows => rows.map(c=>`<div class="flex items-center gap-2 py-2 border-b border-white/10 last:border-0"><span class="h-2.5 w-2.5 rounded-full" style="background:${esc(c.color||'#64748b')}"></span><span class="text-sm flex-1 truncate">${iconSvg(c.icon,'h-4 w-4')} ${esc(c.name)}</span><span class="tabular text-sm font-medium">${eur(c.value)}</span></div>`).join('')||'<p class="text-sm text-slate-500">Nessuna categoria.</p>';
   const budgets = S.categories.filter(c=>c.type==='expense'&&c.monthly_budget!==null&&c.monthly_budget!==undefined);
   const budgetHtml = budgets.map(c=>{
     const spent=expenseRows.find(x=>x.id===c.id)?.value||0, budget=+c.monthly_budget||0, pct=budget>0?spent/budget*100:0;
-    return `<div class="py-2"><div class="flex items-center gap-2 text-sm"><span class="flex-1 truncate">${esc(c.icon||'🏷️')} ${esc(c.name)}</span><span class="tabular">${eur(spent)} / ${eur(budget)}</span></div><div class="h-2 rounded-full bg-slate-800 mt-1"><div class="h-2 rounded-full ${pct>100?'bg-red-400':'bg-mint'}" style="width:${Math.min(Math.max(pct,0),100)}%"></div></div><div class="text-right text-[11px] ${pct>100?'text-red-400':'text-slate-500'}">${pct>100?'oltre budget di '+eur(spent-budget):pct.toFixed(0)+'% del budget'}</div></div>`;
+    return `<div class="py-2"><div class="flex items-center gap-2 text-sm"><span class="flex-1 truncate">${iconSvg(c.icon,'h-4 w-4')} ${esc(c.name)}</span><span class="tabular">${eur(spent)} / ${eur(budget)}</span></div><div class="h-2 rounded-full bg-slate-800 mt-1"><div class="h-2 rounded-full ${pct>100?'bg-red-400':'bg-mint'}" style="width:${Math.min(Math.max(pct,0),100)}%"></div></div><div class="text-right text-[11px] ${pct>100?'text-red-400':'text-slate-500'}">${pct>100?'oltre budget di '+eur(spent-budget):pct.toFixed(0)+'% del budget'}</div></div>`;
   }).join('')||'<p class="text-sm text-slate-500">Imposta un budget mensile modificando una categoria.</p>';
   const k = (l,v,c='') => `<div class="${CARD}"><div class="text-xs text-slate-400">${l}</div><div class="mt-1 text-xl font-semibold tabular ${c}">${v}</div></div>`;
   // Andamento: sempre 6 mesi, terminando nel mese selezionato (l'ultimo)
@@ -727,8 +775,8 @@ function viewPat(){
 /* ===================== TAB 5 · OBIETTIVI ===================== */
 // Accantonamenti: i soldi restano sui conti veri, l'obiettivo è una quota «messa da parte».
 // Messo da parte = somma dei movimenti dell'obiettivo (+ versamenti, - prelievi/spese).
-const GOAL_PRESETS = [['Fondo di emergenza','🛟','#a3e635'],['Vacanza','🏖️','#38bdf8'],['Auto','🚗','#818cf8'],['Casa','🏠','#f59e0b'],['Regalo','🎁','#f472b6']];
-const GOAL_ICONS = ['🛟','🏖️','🚗','🏠','🎓','💍','🎁','💻','📱','✈️','🎄','🐶'];
+const GOAL_PRESETS = [['Fondo di emergenza','lifeRing','#a3e635'],['Vacanza','beach','#38bdf8'],['Auto','car','#818cf8'],['Casa','home','#f59e0b'],['Regalo','gift','#f472b6']];
+const GOAL_ICONS = ['lifeRing','beach','car','home','graduation','ring','gift','laptop','phone','plane','tree','dog','target','coins'];
 const ENTRY_LBL = {deposit:'Versamento', withdraw:'Prelievo', spend:'Spesa'};
 let goalCharts = [];
 const goal = id => S.goals.find(g => g.id === id);
@@ -759,10 +807,10 @@ function goalCard(g){
     <div class="flex items-center gap-4">
       <div class="relative h-28 w-28 shrink-0"><canvas id="gc-${g.id}"></canvas></div>
       <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2"><span class="text-xl">${esc(g.icon || '🎯')}</span><h3 class="font-semibold truncate">${esc(g.name)}</h3></div>
+        <div class="flex items-center gap-2">${iconSvg(g.icon||'target','h-5 w-5 text-mint')}<h3 class="font-semibold truncate">${esc(g.name)}</h3></div>
         <div class="mt-1 text-xl font-semibold tabular">${eur(saved)}</div>
         <div class="text-xs text-slate-500">di ${eur(target)}</div>
-        <div class="text-xs mt-1 ${done?'text-mint':'text-slate-400'}">${done ? (saved > target + 0.005 ? 'Raggiunto, ' + eur(saved - target) + ' oltre' : 'Obiettivo raggiunto 🎉') : 'Mancano ' + eur(rest)}</div>
+        <div class="text-xs mt-1 ${done?'text-mint':'text-slate-400'}">${done ? (saved > target + 0.005 ? 'Raggiunto, ' + eur(saved - target) + ' oltre' : 'Obiettivo raggiunto') : 'Mancano ' + eur(rest)}</div>
         ${dl}</div></div>
     <div class="grid grid-cols-3 gap-2 mt-3">
       <button class="${B1} !py-2 !text-xs" onclick="moneyForm('${g.id}','deposit')">Aggiungi</button>
@@ -782,9 +830,9 @@ function viewGoals(){
   const k = (l,v,cls='') => `<div class="${CARD} !p-3"><div class="text-[11px] text-slate-400">${l}</div><div class="mt-0.5 text-base font-semibold tabular ${cls}">${eur(v)}</div></div>`;
   const warn = alloc > liq + 0.005 ? `<div class="mt-3 rounded-xl border border-red-400/40 bg-red-400/10 p-3 text-sm text-red-300">Hai messo da parte ${eur(alloc)} negli obiettivi, ma la liquidità è ${eur(liq)}: ${eur(alloc - liq)} non sono coperti.
     Se hai speso soldi accantonati, usa «Preleva» sull'obiettivo per riallinearlo.</div>` : '';
-  const empty = `<div class="${CARD} text-center py-8"><div class="text-3xl mb-2">🎯</div><p class="font-medium">Nessun obiettivo ancora</p>
+  const empty = `<div class="${CARD} text-center py-8"><div class="mb-2 flex justify-center text-mint">${iconSvg('target','h-8 w-8')}</div><p class="font-medium">Nessun obiettivo ancora</p>
     <p class="text-sm text-slate-400 mt-1 mb-4">Metti da parte soldi per qualcosa di preciso: un fondo di emergenza, una vacanza, un acquisto.</p>
-    <div class="flex flex-wrap justify-center gap-2">${GOAL_PRESETS.map(p => `<button class="${B2}" onclick="goalForm(null,'${p[0]}')">${p[1]} ${p[0]}</button>`).join('')}</div></div>`;
+    <div class="flex flex-wrap justify-center gap-2">${GOAL_PRESETS.map(p => `<button class="${B2}" onclick="goalForm(null,'${p[0]}')">${iconSvg(p[1],'h-4 w-4')} ${esc(p[0])}</button>`).join('')}</div></div>`;
   $('#view').innerHTML = head + (S.goals.length ? `<div class="grid grid-cols-3 gap-3">${k('Messo da parte', alloc)}${k('Liquidità', liq)}${k('Libera', free, free < 0 ? 'text-red-400' : 'text-mint')}</div>${warn}
     <div class="grid md:grid-cols-2 gap-3 mt-3">${S.goals.map(goalCard).join('')}</div>` : empty);
   Chart.defaults.color = '#94a3b8';
@@ -797,21 +845,22 @@ function viewGoals(){
   });
 }
 
+function chooseGoalIcon(value){ const el=$('#gicon'); if(el) el.value=value; }
 /* Nuovo / modifica obiettivo */
 function goalForm(editId = null, preset = null){
   const g = editId ? goal(editId) : null, p = preset ? GOAL_PRESETS.find(x => x[0] === preset) : null;
   const v = g || (p ? {name:p[0], icon:p[1], color:p[2]} : {});
+  const goalIconButtons = GOAL_ICONS.map(k=>'<button type="button" onclick="chooseGoalIcon(\''+k+'\')" class="flex h-9 w-9 items-center justify-center rounded-lg text-mint hover:bg-white/10" aria-label="Scegli icona '+ICON_NAMES[k]+'">'+iconSvg(k,'h-5 w-5')+'</button>').join('');
   modal(`<h3 class="font-semibold mb-3">${g ? 'Modifica obiettivo' : 'Nuovo obiettivo'}</h3>
-    ${g ? '' : `<div class="flex flex-wrap gap-2 mb-3">${GOAL_PRESETS.map(x => `<button type="button" class="${B2}" onclick="goalForm(null,'${x[0]}')">${x[1]} ${x[0]}</button>`).join('')}</div>`}
+    ${g ? '' : `<div class="flex flex-wrap gap-2 mb-3">${GOAL_PRESETS.map(x => `<button type="button" class="${B2}" onclick="goalForm(null,'${x[0]}')">${iconSvg(x[1],'h-4 w-4')} ${esc(x[0])}</button>`).join('')}</div>`}
     <form id="gf" class="space-y-3">
       <input name="name" placeholder="Nome (es. Vacanza in Giappone)" required value="${esc(v.name || '')}" oninput="goalHint()" class="${IN}">
       <div><label class="text-xs text-slate-400">Importo da raggiungere (€)</label>
         <input name="target" inputmode="decimal" required placeholder="0,00" value="${g ? String(g.target_amount).replace('.', ',') : ''}" class="${IN}"><p id="ghint" class="text-xs text-slate-500 mt-1"></p></div>
       ${g ? '' : `<div><label class="text-xs text-slate-400">Già messi da parte (€, facoltativo)</label><input name="initial" inputmode="decimal" placeholder="0,00" class="${IN}"></div>`}
       <div><label class="text-xs text-slate-400">Scadenza (facoltativa)</label><input type="date" name="date" value="${g?.target_date || ''}" class="${IN}"></div>
-      <div><label class="text-xs text-slate-400">Icona</label>
-        <div class="flex items-center gap-2"><input name="icon" id="gicon" maxlength="8" value="${esc(v.icon || '🎯')}" class="${IN} !w-16 text-center text-2xl !px-1" aria-label="Icona">
-          <div class="flex flex-wrap gap-1">${GOAL_ICONS.map(e => `<button type="button" onclick="$('#gicon').value='${e}'" class="h-8 w-8 rounded-lg text-lg hover:bg-slate-800">${e}</button>`).join('')}</div></div></div>
+      <div><label class="text-xs text-slate-400">Icona</label><input type="hidden" name="icon" id="gicon" value="${iconKey(v.icon,'target')}">
+        <div class="mt-2 flex flex-wrap gap-1">${goalIconButtons}</div></div>
       <div class="flex items-center justify-between text-sm text-slate-400"><span>Colore</span>
         <input type="color" name="color" value="${v.color || '#a3e635'}" class="h-9 w-14 cursor-pointer rounded-lg border border-white/10 bg-bg p-0.5"></div>
       <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button>
@@ -821,7 +870,7 @@ function goalForm(editId = null, preset = null){
     e.preventDefault();
     const f = new FormData(e.target), num = x => { const n = parseFloat(String(x || '').replace(',', '.')); return isNaN(n) ? 0 : n; };
     const target = num(f.get('target')); if (!(target > 0)) return toast('Importo non valido');
-    const row = {name:f.get('name').trim(), target_amount:target, icon:(f.get('icon') || '').trim() || '🎯', color:f.get('color'), target_date:f.get('date') || null};
+    const row = {name:f.get('name').trim(), target_amount:target, icon:(f.get('icon') || '').trim() || 'target', color:f.get('color'), target_date:f.get('date') || null};
     if (g) upd('goals', g.id, row);
     else {
       ins('goals', row);
@@ -876,7 +925,7 @@ function spendForm(id){
       <div><label class="text-xs text-slate-400">Importo speso (€)</label><input name="amount" inputmode="decimal" required value="${String(saved.toFixed(2)).replace('.', ',')}" class="${IN}"></div>
       <div><label class="text-xs text-slate-400">Data</label><input type="date" name="date" value="${today()}" required class="${IN}"></div></div>
       <div><label class="text-xs text-slate-400">Pagato dal conto</label><select name="account_id" class="${IN}">${accs.map(a => `<option value="${a.id}" ${a.id===best.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
-      <div><label class="text-xs text-slate-400">Categoria</label><select name="category_id" required class="${IN}">${cats.map(c => `<option value="${c.id}">${esc(c.icon || '')} ${esc(c.name)}</option>`).join('')}</select></div>
+      <div><label class="text-xs text-slate-400">Categoria</label><select name="category_id" required class="${IN}">${cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
       <div><label class="text-xs text-slate-400">Tipo di spesa</label><select name="is_necessary" class="${IN}"><option value="1" ${needs?'selected':''}>Necessità</option><option value="0" ${needs?'':'selected'}>Casuale</option></select></div>
       <input name="description" value="${esc(g.name)}" placeholder="Descrizione" class="${IN}">
       <div class="flex gap-2"><button type="button" class="${B2} flex-1" onclick="closeModal()">Annulla</button><button class="${B1} flex-1">Registra spesa</button></div></form>`);
@@ -898,7 +947,7 @@ function spendForm(id){
 function goalDetail(id){
   const g = goal(id), saved = goalSaved(g);
   const entries = S.goal_entries.filter(e => e.goal_id === id).sort((a,b) => b.date.localeCompare(a.date) || (b.created_at||'').localeCompare(a.created_at||''));
-  modal(`<div class="flex items-center gap-2 mb-1"><span class="text-xl">${esc(g.icon || '🎯')}</span><h3 class="font-semibold truncate">${esc(g.name)}</h3></div>
+  modal(`<div class="flex items-center gap-2 mb-1">${iconSvg(g.icon||'target','h-5 w-5 text-mint')}<h3 class="font-semibold truncate">${esc(g.name)}</h3></div>
     <p class="text-sm text-slate-400 mb-3">${eur(saved)} messi da parte su ${eur(+g.target_amount)}</p>
     <div class="rounded-xl border border-white/10 divide-y divide-white/10 max-h-64 overflow-y-auto">${entries.map(e => `<div class="flex items-center gap-2 px-3 py-2 text-sm">
       <div class="flex-1 min-w-0"><div>${ENTRY_LBL[e.kind] || 'Movimento'}${e.note ? ` <span class="text-xs text-slate-500">· ${esc(e.note)}</span>` : ''}</div><div class="text-xs text-slate-500">${dmy(e.date)}</div></div>
@@ -915,7 +964,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) naviga
 /* ===================== LOGIN & AVVIO ===================== */
 function showAuth(){
   const a = $('#auth'); a.classList.remove('hidden'); a.classList.add('flex');
-  a.innerHTML = `<form id="af" class="w-full max-w-sm space-y-3"><div class="text-2xl font-semibold"><span class="text-mint">●</span> Hub Finanza</div>
+  a.innerHTML = `<form id="af" class="w-full max-w-sm space-y-3"><div class="flex items-center gap-3 text-2xl font-semibold"><img src="finance-app-icon-192.jpg" alt="" class="h-12 w-12 rounded-xl object-cover">Finance App</div>
     <p class="text-sm text-slate-400">Accedi: i tuoi dati si sincronizzano su tutti i dispositivi.</p>
     <input name="email" type="email" autocomplete="email" placeholder="Email" required class="${IN}">
     <input name="password" type="password" autocomplete="current-password" minlength="6" placeholder="Password" required class="${IN}">
