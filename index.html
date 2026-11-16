@@ -66,7 +66,7 @@ const SUPABASE_URL = 'https://ddfeeqybmxladzunkpbg.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_F3q51ck3EEkWZ8dfPHiyWg_HkwpiRBW';
 const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 let sb;
-const APP_VERSION = '2.7';
+const APP_VERSION = '2.8';
 // Qualsiasi errore di JavaScript viene mostrato in una barra rossa (niente più pagina muta)
 function showFatal(m){
   let b = document.getElementById('fatal');
@@ -488,6 +488,18 @@ function viewAn(){
     return `<div class="py-2"><div class="flex items-center gap-2 text-sm"><span class="flex-1 truncate">${esc(c.icon||'🏷️')} ${esc(c.name)}</span><span class="tabular">${eur(spent)} / ${eur(budget)}</span></div><div class="h-2 rounded-full bg-slate-800 mt-1"><div class="h-2 rounded-full ${pct>100?'bg-red-400':'bg-mint'}" style="width:${Math.min(Math.max(pct,0),100)}%"></div></div><div class="text-right text-[11px] ${pct>100?'text-red-400':'text-slate-500'}">${pct>100?'oltre budget di '+eur(spent-budget):pct.toFixed(0)+'% del budget'}</div></div>`;
   }).join('')||'<p class="text-sm text-slate-500">Imposta un budget mensile modificando una categoria.</p>';
   const k = (l,v,c='') => `<div class="${CARD}"><div class="text-xs text-slate-400">${l}</div><div class="mt-1 text-xl font-semibold tabular ${c}">${v}</div></div>`;
+  // Andamento: sempre 6 mesi, terminando nel mese selezionato (l'ultimo)
+  const months = [];
+  for (let i = 5; i >= 0; i--){
+    const d = new Date(+A.y, +A.m - 1 - i, 1);
+    months.push({key:`${d.getFullYear()}-${pad(d.getMonth()+1)}`, label:MESI[d.getMonth()].slice(0,3) + ' ' + String(d.getFullYear()).slice(2)});
+  }
+  const tr = months.map(x => monthSummary(x.key)), last = tr.length - 1;
+  const rateOf = t => t.inc > 0 ? (t.risp / t.inc * 100).toFixed(0) + '%' : '–';
+  const trRows = months.map((x,i) => { const t = tr[i], sel = i === last;
+    return `<tr class="${sel?'bg-mint/10':''}"><td class="py-1.5 pl-2 ${sel?'font-medium text-mint':'text-slate-300'}">${x.label}</td>
+      <td class="text-right tabular">${eur(t.inc)}</td><td class="text-right tabular">${eur(t.spese)}</td>
+      <td class="text-right tabular ${t.risp<0?'text-red-400':'text-mint'}">${eur(t.risp)}</td><td class="text-right tabular pr-2 text-slate-400">${rateOf(t)}</td></tr>`; }).join('');
   $('#view').innerHTML = `
     <div class="mb-4"><h1 class="text-xl font-semibold mb-3">Analisi completa</h1>${dateSel(A,'setAn',false)}</div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -503,28 +515,26 @@ function viewAn(){
             <div class="h-2 rounded-full bg-amber-400/20 mt-1"><div class="h-2 rounded-full bg-mint" style="width:${pn}%"></div></div></div>
           <div class="flex justify-between"><span class="text-slate-300">Casuale</span><b class="tabular text-amber-300">${eur(cas)} · ${ex>0?(100-pn).toFixed(0):0}%</b></div>
           <p class="text-xs text-slate-500">Rimborsi sottratti dal totale uscite; rettifiche di saldo escluse.</p></div></div></div>
-    <div class="${CARD} mt-3"><div class="flex items-baseline justify-between mb-3"><h2 class="font-semibold">Andamento ultimi 6 mesi</h2><span class="text-xs text-slate-500">fino a ${MESI[+A.m-1]} ${A.y}</span></div><div class="h-60"><canvas id="ch2"></canvas></div></div>`;
+    <div class="${CARD} mt-3"><div class="flex items-baseline justify-between mb-3 gap-2"><h2 class="font-semibold">Andamento ultimi 6 mesi</h2>
+      <span class="text-xs text-slate-400">Risparmio ${MESI[+A.m-1]}: <b class="tabular ${tr[last].risp<0?'text-red-400':'text-mint'}">${eur(tr[last].risp)}</b></span></div>
+      <div class="h-48"><canvas id="ch2"></canvas></div>
+      <div class="overflow-x-auto mt-3"><table class="w-full text-xs"><thead><tr class="text-slate-500">
+        <th class="text-left font-normal py-1 pl-2">Mese</th><th class="text-right font-normal">Entrate</th><th class="text-right font-normal">Uscite</th><th class="text-right font-normal">Risparmio</th><th class="text-right font-normal pr-2">Tasso</th></tr></thead>
+        <tbody class="divide-y divide-slate-800">${trRows}</tbody></table></div></div>`;
   if (chart) chart.destroy();
   Chart.defaults.color = '#94a3b8';
   chart = new Chart($('#ch'), {type:'doughnut',
     data:{labels:['Necessità','Casuale'], datasets:[{data:ex>0?[nec,cas]:[1,0], backgroundColor:ex>0?['#29FFC2','#f59e0b']:['#1e293b','#1e293b'], borderColor:'#111827', borderWidth:3}]},
     options:{cutout:'70%', maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}});
-  // Andamento degli ultimi 6 mesi (fino al mese selezionato): entrate, uscite nette e risparmio
-  const months = [];
-  for (let i = 5; i >= 0; i--){
-    const d = new Date(+A.y, +A.m - 1 - i, 1);
-    months.push({key:`${d.getFullYear()}-${pad(d.getMonth()+1)}`, label:MESI[d.getMonth()].slice(0,3) + ' ' + String(d.getFullYear()).slice(2)});
-  }
-  const tr = months.map(x => monthSummary(x.key));
+  // Andamento: una sola linea (risparmio mensile), mese selezionato evidenziato; dettagli al tocco e nella tabella
   if (chart2) chart2.destroy();
-  chart2 = new Chart($('#ch2'), {type:'bar',
-    data:{labels:months.map(x => x.label), datasets:[
-      {label:'Entrate', data:tr.map(x => x.inc), backgroundColor:'#29FFC2', borderRadius:4},
-      {label:'Uscite', data:tr.map(x => x.spese), backgroundColor:'#f59e0b', borderRadius:4},
-      {label:'Risparmio', type:'line', data:tr.map(x => x.risp), borderColor:'#818cf8', backgroundColor:'#818cf8', tension:.3, pointRadius:3}]},
-    options:{maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:c => `${c.dataset.label}: ${eur(c.parsed.y)}`}}},
-      scales:{x:{grid:{display:false}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => Math.abs(v) >= 1000 ? (v/1000) + 'k' : v}}}}});
+  chart2 = new Chart($('#ch2'), {type:'line',
+    data:{labels:months.map(x => x.label), datasets:[{label:'Risparmio', data:tr.map(x => x.risp), borderColor:'#29FFC2', tension:.3, borderWidth:2,
+      pointRadius:c => c.dataIndex === last ? 6 : 3, pointBackgroundColor:c => c.dataIndex === last ? '#29FFC2' : '#111827', pointBorderColor:'#29FFC2', pointBorderWidth:2}]},
+    options:{maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => { const t = tr[c.dataIndex];
+        return [`Risparmio: ${eur(t.risp)}`, `Entrate: ${eur(t.inc)}`, `Uscite: ${eur(t.spese)}`, `Tasso: ${rateOf(t)}`]; }}}},
+      scales:{x:{grid:{display:false}}, y:{grid:{color:c => c.tick.value === 0 ? '#475569' : '#1e293b'}, ticks:{callback:v => Math.abs(v) >= 1000 ? (v/1000) + 'k' : v}}}}});
 }
 
 /* ===================== TAB 4 · PATRIMONIO & CALENDARIO (segnaposto) ===================== */
